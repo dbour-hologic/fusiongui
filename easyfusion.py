@@ -1,5 +1,6 @@
 import sys, os
 from PyQt4 import QtGui
+from fusion import FusionAnalysis
 
 
 class Fusion(QtGui.QWidget):
