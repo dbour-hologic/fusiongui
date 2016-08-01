@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from PyQt4 import QtGui
 
 
@@ -18,35 +18,34 @@ class Fusion(QtGui.QWidget):
 
 		lisUploadBox = QtGui.QGroupBox("LIS Uploads", self)
 		pcrUploadBox = QtGui.QGroupBox("PCR Uploads", self)
-		assayTypeBox = QtGui.QGroupBox("Assay Type", self)
+		assayTypeBox = QtGui.QGroupBox("Assay Types", self)
 		executeBox = QtGui.QGroupBox(self)
 
-		upload_lis_button = QtGui.QPushButton("Upload LIS File")
-		upload_pcr_button = QtGui.QPushButton("Upload PCR File")
+		upload_lis_button = QtGui.QPushButton("Upload LIS File(s)")
+		upload_pcr_button = QtGui.QPushButton("Upload PCR File(s)")
 
 
-		lisFileList = QtGui.QListWidget()
-		pcrFileList = QtGui.QListWidget()
+		self.lisFileList = QtGui.QListWidget()
+		self.pcrFileList = QtGui.QListWidget()
 
 		vboxLISFiles = QtGui.QVBoxLayout()
 		vboxLISFiles.addWidget(upload_lis_button)
-		vboxLISFiles.addWidget(lisFileList)
+		vboxLISFiles.addWidget(self.lisFileList)
 		vboxLISFiles.addStretch(1)
 
 		vboxPCRFiles = QtGui.QVBoxLayout()
 		vboxPCRFiles.addWidget(upload_pcr_button)
-		vboxPCRFiles.addWidget(pcrFileList)
+		vboxPCRFiles.addWidget(self.pcrFileList)
 		vboxPCRFiles.addStretch(1)
 
 		assay_type_paraflu = QtGui.QRadioButton("Paraflu")
-		assay_type_flu = QtGui.QRadioButton("Flu")
+		
 
 		vboxAssay = QtGui.QVBoxLayout()
 		vboxAssay.addWidget(assay_type_paraflu)
-		vboxAssay.addWidget(assay_type_flu)
 		vboxAssay.addStretch(1)
 
-		execute_run = QtGui.QPushButton("Run")
+		execute_run = QtGui.QPushButton("Combine Files")
 
 		vboxRun = QtGui.QVBoxLayout()
 		vboxRun.addWidget(execute_run)
@@ -62,6 +61,10 @@ class Fusion(QtGui.QWidget):
 		grid.addWidget(executeBox, 2, 1, 1, 3)
 		self.setLayout(grid)
 
+		upload_lis_button.clicked.connect(self.populateFields)
+		upload_pcr_button.clicked.connect(self.populateFields)
+
+
 		self.setGeometry(300,300,500,250)
 		self.setWindowTitle('Fusion LIS & PCR Combiner')
 		self.show()
@@ -70,7 +73,22 @@ class Fusion(QtGui.QWidget):
 		"""
 		Populates a list widget with the files selected
 		"""
-		pass
+		
+		# Sets the type of list to populate (LIS/PCR)
+		list_to_populate = None
+
+		if (self.sender().text() == 'Upload LIS File(s)'):
+			list_to_populate = self.lisFileList
+		elif (self.sender().text() == 'Upload PCR File(s)'):
+			list_to_populate = self.pcrFileList
+		else:
+			print("Error", self.sender().text())
+
+		file_names = QtGui.QFileDialog.getOpenFileNames(self, "Select Files", '/home', "*.lis *.csv")
+
+		if file_names:
+			for file_name in file_names:
+				list_to_populate.addItem(file_name)
 
 def main():
 
