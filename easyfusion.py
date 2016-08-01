@@ -45,9 +45,13 @@ class Fusion(QtGui.QWidget):
 		vboxAssay.addWidget(assay_type_paraflu)
 		vboxAssay.addStretch(1)
 
+		status_msg = QtGui.QTextEdit()
+		status_msg.setReadOnly(True)
+		status_msg.setStyleSheet("background-color: #EEF3F9;")
 		execute_run = QtGui.QPushButton("Combine Files")
 
 		vboxRun = QtGui.QVBoxLayout()
+		vboxRun.addWidget(status_msg)
 		vboxRun.addWidget(execute_run)
 
 		lisUploadBox.setLayout(vboxLISFiles)
@@ -63,7 +67,6 @@ class Fusion(QtGui.QWidget):
 
 		upload_lis_button.clicked.connect(self.populateFields)
 		upload_pcr_button.clicked.connect(self.populateFields)
-
 
 		self.setGeometry(300,300,500,250)
 		self.setWindowTitle('Fusion LIS & PCR Combiner')
@@ -89,6 +92,10 @@ class Fusion(QtGui.QWidget):
 		if file_names:
 			for file_name in file_names:
 				list_to_populate.addItem(file_name)
+
+	
+
+
 
 def main():
 
