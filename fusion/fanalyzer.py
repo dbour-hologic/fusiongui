@@ -59,9 +59,25 @@ class FusionAnalysis():
 
 		# Universal Settings - Can move to a JSON configuration later
 		CHANGE_PCR_COLUMN_NAMES = True
-		CHANGE_PCR_COLUMN_DICT = {'RFU Range':'Unrounded RFU Range','LR_Ct_NonNormalized':'Unrounded Ct'}
-		CHANGE_LIS_COLUMN_NAMES = False
-		CHANGE_LIS_COLUMN_DICT = {}
+		CHANGE_PCR_COLUMN_DICT = {'RFU Range':'Unrounded RFU Range',
+								  'LR_Ct_NonNormalized':'Unrounded Ct'}
+		CHANGE_LIS_COLUMN_NAMES = True
+		CHANGE_LIS_COLUMN_DICT = {'Interpretation 1':'FAM Rounded Ct',
+                           		  'Interpretation 2':'HEX Rounded Ct',
+		                          'Interpretation 3':'ROX Rounded Ct',
+		                          'Interpretation 4':'RED647 Rounded Ct',
+		                          'Interpretation 5':'IC Rounded Ct',
+		                          'Interpretation 6':'POS/NEG/Invalid for HPIV-1',
+		                          'Interpretation 7':'POS/NEG/Invalid for HPIV-2',
+		                          'Interpretation 8':'POS/NEG/Invalid for HPIV-3',
+		                          'Interpretation 9':'POS/NEG/Invalid for HPIV-4',
+		                          'Interpretation 10':'Valid/Invalid for IC',
+		                          'OtherData 1':'FAM Rounded RFU Range (HPIV-1)',
+		                          'OtherData 2':'HEX Rounded RFU Range (HPIV-2)',
+		                          'OtherData 3':'IC Rounded RFU Range',
+		                          'OtherData 4':'RED647 Rounded RFU Range (HPIV-4)',
+		                          'OtherData 5':'ROX Rounded RFU Range (HPIV-3)',
+                          		 }
 		PCR_COLUMNS_KEEP = ['Specimen Barcode', 'Analyte', 'Run ID', 
                             'Channel', 'Unrounded RFU Range', 'EstimatedBaseline',
                         	'Unrounded Ct', 'LR_TSlope_NonNormalized','Cartridge Lot #',
@@ -69,12 +85,24 @@ class FusionAnalysis():
                          	'ElutionBufferRFID','ReconstitutionBufferRFID', 'OilRFID',
                          	'WellID','FusionTestOrder']
 
+		LIS_COLUMNS_KEEP = ['Specimen Barcode','Analyte','Run ID','Instrument Flags',
+		                      'FAM Rounded Ct', 'HEX Rounded Ct', 'ROX Rounded Ct', 'RED647 Rounded Ct', 
+		                      'IC Rounded Ct', 'POS/NEG/Invalid for HPIV-1', 'POS/NEG/Invalid for HPIV-2',
+		                      'POS/NEG/Invalid for HPIV-3', 'POS/NEG/Invalid for HPIV-4',
+		                      'Valid/Invalid for IC','Overall_Validity', 'Serial Number', 'Sample Type', 'Sample Name',
+		                      'Test order #', 'FAM Rounded RFU Range (HPIV-1)', 'HEX Rounded RFU Range (HPIV-2)',
+		                      'IC Rounded RFU Range', 'RED647 Rounded RFU Range (HPIV-4)', 
+		                      'ROX Rounded RFU Range (HPIV-3)'
+		                    ]
+
 		if CHANGE_PCR_COLUMN_NAMES:
 			self.pcr_file.rename(columns=CHANGE_PCR_COLUMN_DICT, inplace=True)
 		if CHANGE_LIS_COLUMN_NAMES:
-			self.lis_file.rename(columnns=CHANGE_LIS_COLUMN_DICT, inplace=True)
+			self.lis_file.rename(columns=CHANGE_LIS_COLUMN_DICT, inplace=True)
 
-		# --- STARTING HERE IS PARAFLU SPECIFIC
+		# -----------> STARTING HERE IS PARAFLU SPECIFIC
+
+		# --- START PCR MODIFICATIONS
 
 		# Partition the barcode numbers
 		self.pcr_file['CapAndVialTrayID'] = self.pcr_file['CapAndVialTrayID'].apply(lambda num: self.trimmer(num, trim_front=2, trim_back=10)) 
@@ -100,9 +128,131 @@ class FusionAnalysis():
 		# Merge columns from multilayer to single layer headers
 		pivot_pcr_file.columns = [name[1]+"-"+name[0] for name in pivot_pcr_file.columns.values]
 
-		# --- END PARAFLU SPECIFIC
+		# --- END PCR MODIFICATIONS
 
-		print(pivot_pcr_file[:2])
+		# --- START LIS MODIFICATIONS
+
+		# Remove the '[end]' from 'Specimen Barcode', a designation for end of file that came from the automated Panther Software
+		self.lis_file = self.lis_file[~self.lis_file['Specimen Barcode'].str.contains('[end]')]
+
+		# Check for overall validity
+		self.lis_file['Overall_Validity'] = "Valid"
+		self.lis_file['Overall_Validity'][(
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('neg') &
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('neg') &
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('neg') &
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('neg') &
+		                                (self.lis_file['Valid/Invalid for IC']).str.contains('Invalid')
+		                             ) |
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('Invalid') |
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('Invalid') |
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('Invalid') |
+		                                (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('Invalid')] = "Invalid"
+
+		# Filter Columns
+		lis_file_filtered_columns = self.lis_file[LIS_COLUMNS_KEEP]
+
+		# Now let's give the table a unique id like we did for the PCR data so we can re-combine them!  
+		# Add an extra column to help group the subjects. Will later to be used for combining with another dataframe.
+		lis_file_filtered_columns = lis_file_filtered_columns.assign(UniqueID = lis_file_filtered_columns['Specimen Barcode'] + "_" + 
+		                                                            			lis_file_filtered_columns['Run ID'] + "_" + 
+		                                                             			lis_file_filtered_columns['Test order #'])
+		lis_file_filtered_columns = lis_file_filtered_columns.set_index(['UniqueID'])
+
+		# --- END LIS MODIFICATIONS
+		# --- START COMBINING
+
+		# Combine Files on Unique Key
+		pcr_and_lis = lis_file_filtered_columns.join(pivot_pcr_file)
+
+		# Logic calls to see if a positive hit was found, if not, mark the RFU Range channel with a "-".
+		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-1'].str.contains("neg", case=False), 'FAM Rounded RFU Range (HPIV-1)'] = "-"
+		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-2'].str.contains("neg", case=False), 'HEX Rounded RFU Range (HPIV-2)'] = "-"
+		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-3'].str.contains("neg", case=False), 'ROX Rounded RFU Range (HPIV-3)'] = "-"
+		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-4'].str.contains("neg", case=False), 'RED647 Rounded RFU Range (HPIV-4)'] = "-"
+		pcr_and_lis.loc[pcr_and_lis['Valid/Invalid for IC'].str.contains("Invalid", case=False), 'IC Rounded RFU Range'] = "-"
+
+		# Final columns to keep
+		save_as = pcr_and_lis[['Specimen Barcode', 
+		             'Sample Type', 'Analyte', 
+		             'Run ID', 
+		             'FAM-WellID', 
+		             'ROX-WellID',
+		             'HEX-WellID',
+		             'RED647-WellID', 
+		             'IC-WellID',
+		             'Test order #', 
+		             'Instrument Flags',
+		             'FAM Rounded Ct',
+		             'FAM Rounded RFU Range (HPIV-1)',
+		             'HEX Rounded Ct',
+		             'HEX Rounded RFU Range (HPIV-2)',
+		             'ROX Rounded Ct',
+		             'ROX Rounded RFU Range (HPIV-3)',
+		             'RED647 Rounded Ct',
+		             'RED647 Rounded RFU Range (HPIV-4)',
+		             'IC Rounded Ct',
+		             'IC Rounded RFU Range',
+		             'POS/NEG/Invalid for HPIV-1',
+		             'POS/NEG/Invalid for HPIV-2',
+		             'POS/NEG/Invalid for HPIV-3',
+		             'POS/NEG/Invalid for HPIV-4',
+		             'Valid/Invalid for IC',
+		             'Overall_Validity',
+		             'Serial Number',
+		             'FAM-CapAndVialTrayID',
+		             'ROX-CapAndVialTrayID',
+		             'HEX-CapAndVialTrayID',
+		             'RED647-CapAndVialTrayID',
+		             'IC-CapAndVialTrayID',
+		             'FAM-Cartridge Lot #',
+		             'ROX-Cartridge Lot #',
+		             'HEX-Cartridge Lot #',
+		             'RED647-Cartridge Lot #',
+		             'IC-Cartridge Lot #',
+		             'FAM-FCRBarcode',
+		             'ROX-FCRBarcode',
+		             'HEX-FCRBarcode',
+		             'RED647-FCRBarcode',
+		             'IC-FCRBarcode',
+		             'FAM-ElutionBufferRFID',
+		             'ROX-ElutionBufferRFID',
+		             'HEX-ElutionBufferRFID',
+		             'RED647-ElutionBufferRFID',
+		             'IC-ElutionBufferRFID',
+		             'FAM-ReconstitutionBufferRFID',
+		             'ROX-ReconstitutionBufferRFID',
+		             'HEX-ReconstitutionBufferRFID',
+		             'RED647-ReconstitutionBufferRFID',
+		             'IC-ReconstitutionBufferRFID',
+		             'FAM-OilRFID',
+		             'ROX-OilRFID',
+		             'HEX-OilRFID',
+		             'RED647-OilRFID',
+		             'IC-OilRFID',
+		             'FAM-FusionTestOrder',
+		             'ROX-FusionTestOrder',
+		             'HEX-FusionTestOrder',
+		             'RED647-FusionTestOrder',
+		             'IC-FusionTestOrder',
+		             'FAM-EstimatedBaseline',
+		             'ROX-EstimatedBaseline',
+		             'HEX-EstimatedBaseline',
+		             'RED647-EstimatedBaseline',
+		             'IC-EstimatedBaseline',
+		             'FAM-LR_TSlope_NonNormalized',
+		             'ROX-LR_TSlope_NonNormalized',
+		             'HEX-LR_TSlope_NonNormalized',
+		             'RED647-LR_TSlope_NonNormalized',
+		             'IC-LR_TSlope_NonNormalized',
+		             'FAM-Unrounded RFU Range',
+		             'ROX-Unrounded RFU Range',
+		             'HEX-Unrounded RFU Range',
+		             'RED647-Unrounded RFU Range',
+		             'IC-Unrounded RFU Range']]
+
+		# Save destination
+		save_as.to_excel(save_to)
 
 	def trimmer(self, number, trim_front=0, trim_back=0):
 
@@ -136,5 +286,4 @@ class FusionAnalysis():
 		return object_to_string
 
 if __name__ == '__main__':
-	f = FusionAnalysis("@Pt22090000574-20160701-183343-000574-20160701-04.lis", "@DI2090000574-20160701-215050-000574-20160701-04.csv", "Paraflu")
-	f.combine_files('Paraflu', 'here')
+	pass
