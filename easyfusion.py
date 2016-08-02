@@ -1,5 +1,7 @@
 import sys, os
+from fusion.fanalyzer import FusionAnalysis
 from PyQt4 import QtGui
+import pandas as pd
 
 class FusionGui(QtGui.QWidget):
 
@@ -113,14 +115,14 @@ class FusionGui(QtGui.QWidget):
 
 		file_names = QtGui.QFileDialog.getOpenFileNames(self, "Select Files", '/home', "%s" % file_type)
 
+
+
 		if file_names:
 			for file_name in file_names:
 				list_to_populate.addItem(file_name)
 
 	def run_program(self):
 		""" Executes the program """
-
-		from fusion.fanalyzer import FusionAnalysis
 
 		save_directory = QtGui.QFileDialog.getExistingDirectory(self,'Select Save Directory')
 
@@ -174,9 +176,12 @@ class FusionGui(QtGui.QWidget):
 		fusion_file_index = {}
 
 		for pcr_files in list_of_PCR_files:
-			partition_pcr_file = pcr_files.split("-")
-			get_pcr_header = partition_pcr_file[0][partition_pcr_file[0].find("@DI"):]
-			unique_id = get_pcr_header.replace("@DI",'') + "_" + \
+			
+
+			get_only_pcr_filename = pcr_files[pcr_files.find("@DI"):]
+			partition_pcr_file = get_only_pcr_filename.split("-")
+
+			unique_id = partition_pcr_file[0].replace("@DI",'') + "_" + \
 						partition_pcr_file[3] + "_" + \
 						partition_pcr_file[4] + "_" + \
 						partition_pcr_file[5].replace('.csv','')
@@ -184,9 +189,11 @@ class FusionGui(QtGui.QWidget):
 			fusion_file_index[unique_id] = [pcr_files]
 
 		for lis_files in list_of_LIS_files:
-			partition_lis_file = lis_files.split("-")
-			get_lis_header = partition_lis_file[0][partition_lis_file[0].find("@Pt2"):]
-			lis_unique_id = get_lis_header.replace('@Pt2','') + "_" + \
+
+			get_only_lis_filename = lis_files[lis_files.find("@Pt2"):]
+			partition_lis_file = get_only_lis_filename.split("-")
+
+			lis_unique_id = partition_lis_file[0].replace('@Pt2','') + "_" + \
 							partition_lis_file[3] + "_" + \
 							partition_lis_file[4] + "_" + \
 							partition_lis_file[5].replace('.lis','')

@@ -46,6 +46,7 @@ class FusionAnalysis():
 										)
 
 
+
 	def check_assay_types(self):
 
 		""" Checks if the assay types designated
