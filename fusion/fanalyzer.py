@@ -22,11 +22,11 @@ class FusionAnalysis():
 
 	"""
 
-	def __init__(self, lis_path, pcr_path, assay_type):
+	def __init__(self, pcr_path, lis_path, assay_type):
 
 		self.assay_type = assay_type
 
-		if (assay_type == 'Paraflu'):
+		if (assay_type == 'P 1/2/3/4'):
 
 			self.pcr_file = pd.read_csv(pcr_path,
 										delimiter=',',
@@ -44,6 +44,14 @@ class FusionAnalysis():
 										encoding='utf-8-sig',
 										dtype={'Test order #': object}
 										)
+
+
+	def check_assay_types(self):
+
+		if (self.pcr_file['Analyte'][0] != self.assay_type):
+			return False
+		return True
+
 
 	def combine_files(self, assay_profile, save_to):
 
@@ -173,83 +181,86 @@ class FusionAnalysis():
 		pcr_and_lis.loc[pcr_and_lis['Valid/Invalid for IC'].str.contains("Invalid", case=False), 'IC Rounded RFU Range'] = "-"
 
 		# Final columns to keep
-		save_as = pcr_and_lis[['Specimen Barcode', 
-		             'Sample Type', 'Analyte', 
-		             'Run ID', 
-		             'FAM-WellID', 
-		             'ROX-WellID',
-		             'HEX-WellID',
-		             'RED647-WellID', 
-		             'IC-WellID',
-		             'Test order #', 
-		             'Instrument Flags',
-		             'FAM Rounded Ct',
-		             'FAM Rounded RFU Range (HPIV-1)',
-		             'HEX Rounded Ct',
-		             'HEX Rounded RFU Range (HPIV-2)',
-		             'ROX Rounded Ct',
-		             'ROX Rounded RFU Range (HPIV-3)',
-		             'RED647 Rounded Ct',
-		             'RED647 Rounded RFU Range (HPIV-4)',
-		             'IC Rounded Ct',
-		             'IC Rounded RFU Range',
-		             'POS/NEG/Invalid for HPIV-1',
-		             'POS/NEG/Invalid for HPIV-2',
-		             'POS/NEG/Invalid for HPIV-3',
-		             'POS/NEG/Invalid for HPIV-4',
-		             'Valid/Invalid for IC',
-		             'Overall_Validity',
-		             'Serial Number',
-		             'FAM-CapAndVialTrayID',
-		             'ROX-CapAndVialTrayID',
-		             'HEX-CapAndVialTrayID',
-		             'RED647-CapAndVialTrayID',
-		             'IC-CapAndVialTrayID',
-		             'FAM-Cartridge Lot #',
-		             'ROX-Cartridge Lot #',
-		             'HEX-Cartridge Lot #',
-		             'RED647-Cartridge Lot #',
-		             'IC-Cartridge Lot #',
-		             'FAM-FCRBarcode',
-		             'ROX-FCRBarcode',
-		             'HEX-FCRBarcode',
-		             'RED647-FCRBarcode',
-		             'IC-FCRBarcode',
-		             'FAM-ElutionBufferRFID',
-		             'ROX-ElutionBufferRFID',
-		             'HEX-ElutionBufferRFID',
-		             'RED647-ElutionBufferRFID',
-		             'IC-ElutionBufferRFID',
-		             'FAM-ReconstitutionBufferRFID',
-		             'ROX-ReconstitutionBufferRFID',
-		             'HEX-ReconstitutionBufferRFID',
-		             'RED647-ReconstitutionBufferRFID',
-		             'IC-ReconstitutionBufferRFID',
-		             'FAM-OilRFID',
-		             'ROX-OilRFID',
-		             'HEX-OilRFID',
-		             'RED647-OilRFID',
-		             'IC-OilRFID',
-		             'FAM-FusionTestOrder',
-		             'ROX-FusionTestOrder',
-		             'HEX-FusionTestOrder',
-		             'RED647-FusionTestOrder',
-		             'IC-FusionTestOrder',
-		             'FAM-EstimatedBaseline',
-		             'ROX-EstimatedBaseline',
-		             'HEX-EstimatedBaseline',
-		             'RED647-EstimatedBaseline',
-		             'IC-EstimatedBaseline',
-		             'FAM-LR_TSlope_NonNormalized',
-		             'ROX-LR_TSlope_NonNormalized',
-		             'HEX-LR_TSlope_NonNormalized',
-		             'RED647-LR_TSlope_NonNormalized',
-		             'IC-LR_TSlope_NonNormalized',
-		             'FAM-Unrounded RFU Range',
-		             'ROX-Unrounded RFU Range',
-		             'HEX-Unrounded RFU Range',
-		             'RED647-Unrounded RFU Range',
-		             'IC-Unrounded RFU Range']]
+		try:
+			save_as = pcr_and_lis[['Specimen Barcode', 
+			             'Sample Type', 'Analyte', 
+			             'Run ID', 
+			             'FAM-WellID', 
+			             'ROX-WellID',
+			             'HEX-WellID',
+			             'RED647-WellID', 
+			             'IC-WellID',
+			             'Test order #', 
+			             'Instrument Flags',
+			             'FAM Rounded Ct',
+			             'FAM Rounded RFU Range (HPIV-1)',
+			             'HEX Rounded Ct',
+			             'HEX Rounded RFU Range (HPIV-2)',
+			             'ROX Rounded Ct',
+			             'ROX Rounded RFU Range (HPIV-3)',
+			             'RED647 Rounded Ct',
+			             'RED647 Rounded RFU Range (HPIV-4)',
+			             'IC Rounded Ct',
+			             'IC Rounded RFU Range',
+			             'POS/NEG/Invalid for HPIV-1',
+			             'POS/NEG/Invalid for HPIV-2',
+			             'POS/NEG/Invalid for HPIV-3',
+			             'POS/NEG/Invalid for HPIV-4',
+			             'Valid/Invalid for IC',
+			             'Overall_Validity',
+			             'Serial Number',
+			             'FAM-CapAndVialTrayID',
+			             'ROX-CapAndVialTrayID',
+			             'HEX-CapAndVialTrayID',
+			             'RED647-CapAndVialTrayID',
+			             'IC-CapAndVialTrayID',
+			             'FAM-Cartridge Lot #',
+			             'ROX-Cartridge Lot #',
+			             'HEX-Cartridge Lot #',
+			             'RED647-Cartridge Lot #',
+			             'IC-Cartridge Lot #',
+			             'FAM-FCRBarcode',
+			             'ROX-FCRBarcode',
+			             'HEX-FCRBarcode',
+			             'RED647-FCRBarcode',
+			             'IC-FCRBarcode',
+			             'FAM-ElutionBufferRFID',
+			             'ROX-ElutionBufferRFID',
+			             'HEX-ElutionBufferRFID',
+			             'RED647-ElutionBufferRFID',
+			             'IC-ElutionBufferRFID',
+			             'FAM-ReconstitutionBufferRFID',
+			             'ROX-ReconstitutionBufferRFID',
+			             'HEX-ReconstitutionBufferRFID',
+			             'RED647-ReconstitutionBufferRFID',
+			             'IC-ReconstitutionBufferRFID',
+			             'FAM-OilRFID',
+			             'ROX-OilRFID',
+			             'HEX-OilRFID',
+			             'RED647-OilRFID',
+			             'IC-OilRFID',
+			             'FAM-FusionTestOrder',
+			             'ROX-FusionTestOrder',
+			             'HEX-FusionTestOrder',
+			             'RED647-FusionTestOrder',
+			             'IC-FusionTestOrder',
+			             'FAM-EstimatedBaseline',
+			             'ROX-EstimatedBaseline',
+			             'HEX-EstimatedBaseline',
+			             'RED647-EstimatedBaseline',
+			             'IC-EstimatedBaseline',
+			             'FAM-LR_TSlope_NonNormalized',
+			             'ROX-LR_TSlope_NonNormalized',
+			             'HEX-LR_TSlope_NonNormalized',
+			             'RED647-LR_TSlope_NonNormalized',
+			             'IC-LR_TSlope_NonNormalized',
+			             'FAM-Unrounded RFU Range',
+			             'ROX-Unrounded RFU Range',
+			             'HEX-Unrounded RFU Range',
+			             'RED647-Unrounded RFU Range',
+			             'IC-Unrounded RFU Range']]
+		except KeyError:
+			print("Error:", pcr_and_lis)
 
 		# Save destination
 		save_as.to_excel(save_to)
