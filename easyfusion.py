@@ -20,8 +20,11 @@ class FusionGui(QtGui.QWidget):
 		assayTypeBox = QtGui.QGroupBox("Assay Types", self)
 		executeBox = QtGui.QGroupBox(self)
 
-		upload_lis_button = QtGui.QPushButton("Upload LIS File(s)")
-		upload_pcr_button = QtGui.QPushButton("Upload PCR File(s)")
+		upload_lis_button = QtGui.QPushButton("Upload LIS Files") 
+		upload_pcr_button = QtGui.QPushButton("Upload PCR Files")
+
+		clear_upload_lis_button = QtGui.QPushButton("Clear LIS Uploads")
+		clear_upload_pcr_button =  QtGui.QPushButton("Clear PCR Uploads")
 
 
 		self.lisFileList = QtGui.QListWidget()
@@ -30,27 +33,30 @@ class FusionGui(QtGui.QWidget):
 		vboxLISFiles = QtGui.QVBoxLayout()
 		vboxLISFiles.addWidget(upload_lis_button)
 		vboxLISFiles.addWidget(self.lisFileList)
+		vboxLISFiles.addWidget(clear_upload_lis_button)
 		vboxLISFiles.addStretch(1)
 
 		vboxPCRFiles = QtGui.QVBoxLayout()
 		vboxPCRFiles.addWidget(upload_pcr_button)
 		vboxPCRFiles.addWidget(self.pcrFileList)
+		vboxPCRFiles.addWidget(clear_upload_pcr_button)
 		vboxPCRFiles.addStretch(1)
 
 		assay_type_paraflu = QtGui.QRadioButton("Paraflu")
+		assay_type_paraflu.setChecked(True)
 		
 
 		vboxAssay = QtGui.QVBoxLayout()
 		vboxAssay.addWidget(assay_type_paraflu)
 		vboxAssay.addStretch(1)
 
-		status_msg = QtGui.QTextEdit()
-		status_msg.setReadOnly(True)
-		status_msg.setStyleSheet("background-color: #EEF3F9;")
-		execute_run = QtGui.QPushButton("Combine Files")
+		self.status_msg = QtGui.QTextEdit()
+		self.status_msg.setReadOnly(True)
+		self.status_msg.setStyleSheet("background-color: #EEF3F9;")
+		execute_run = QtGui.QPushButton("Save && Combine Files")
 
 		vboxRun = QtGui.QVBoxLayout()
-		vboxRun.addWidget(status_msg)
+		vboxRun.addWidget(self.status_msg)
 		vboxRun.addWidget(execute_run)
 
 		lisUploadBox.setLayout(vboxLISFiles)
@@ -66,11 +72,25 @@ class FusionGui(QtGui.QWidget):
 
 		upload_lis_button.clicked.connect(self.populate_fields)
 		upload_pcr_button.clicked.connect(self.populate_fields)
+		clear_upload_lis_button.clicked.connect(self.clear_upload_fields)
+		clear_upload_pcr_button.clicked.connect(self.clear_upload_fields)
 		execute_run.clicked.connect(self.run_program)
 
-		self.setGeometry(300,300,500,250)
+		self.setGeometry(300,300,700,200)
 		self.setWindowTitle('Fusion LIS & PCR Combiner')
 		self.show()
+
+	def clear_upload_fields(self):
+		"""
+		Clears the upload list of PCR uploads or LIS uploads
+		"""
+
+		if (self.sender().text() == 'Clear LIS Uploads'):
+			self.lisFileList.clear()
+		elif (self.sender().text() == 'Clear PCR Uploads'):
+			self.pcrFileList.clear()
+		else:
+			print("Error", self.sender().text())
 
 	def populate_fields(self):
 		"""
@@ -79,15 +99,19 @@ class FusionGui(QtGui.QWidget):
 		
 		# Sets the type of list to populate (LIS/PCR)
 		list_to_populate = None
+		# Set the file type
+		file_type = None
 
-		if (self.sender().text() == 'Upload LIS File(s)'):
+		if (self.sender().text() == 'Upload LIS Files'):
 			list_to_populate = self.lisFileList
-		elif (self.sender().text() == 'Upload PCR File(s)'):
+			file_type = "*.lis"
+		elif (self.sender().text() == 'Upload PCR Files'):
 			list_to_populate = self.pcrFileList
+			file_type = "*.csv"
 		else:
 			print("Error", self.sender().text())
 
-		file_names = QtGui.QFileDialog.getOpenFileNames(self, "Select Files", '/home', "*.lis *.csv")
+		file_names = QtGui.QFileDialog.getOpenFileNames(self, "Select Files", '/home', "%s" % file_type)
 
 		if file_names:
 			for file_name in file_names:
@@ -105,23 +129,26 @@ class FusionGui(QtGui.QWidget):
 		
 		match_database = self.match_files(lisFileTextList, pcrFileTextList)
 
-		for a,b in match_database.items():
-			print(a,b)
+		self.status_msg.clear()
 
-		# THIS ISN'T MATCHING PROPERLY
 		for identifier, keypairs in match_database.items():
-			if ((keypairs == 'missing_lis') or (keypairs == 'missing_pcr')):
-				print("FOUND MATCH")
-				continue
+			if ((identifier == 'missing_lis') or (identifier == 'missing_pcr')):
+				if (identifier == 'missing_lis'):
+					for lis in match_database['missing_lis']:
+						self.status_msg.insertHtml('<b>MISSING FILE</b>: The LIS file %s is missing a PCR pair.<br>' % lis)
+				if (identifier == match_database['missing_pcr']):
+					for pcr in missing_pcr:
+						self.status_msg.insertHtml('<b>MISSING FILE</b>: The PCR file %s is missing a LIS pair.<br>' % pcr)
 			else:
-				print("P:", identifier, keypairs)
-			# else:
-			# 	successful_run = FusionAnalysis(keypairs[0], keypairs[1], "P 1/2/3/4")
-			# 	if successful_run.check_assay_types():
-			# 		# new_file_name = identifier + ".xlsx"
-			# 		# save_file_path = os.path.join(str(save_directory), new_file_name)
-			# 		# fusion_run.combine_files("Paraflu", save_file_path)
-			# 		print(keypairs)
+				successful_run = FusionAnalysis(keypairs[0], keypairs[1], "P 1/2/3/4")
+				if successful_run.check_assay_types():
+					new_file_name = identifier + ".xlsx"
+					save_file_path = os.path.join(str(save_directory), new_file_name)
+					successful_run.combine_files("Paraflu", save_file_path)
+				else:
+					self.status_msg.insertHtml('<b>ASSAY TYPE WARNING</b>: The files %s are not of the specified assay type<br>' % keypairs)
+
+		self.status_msg.insertHtml('<b>RUN IS COMPLETE. Results saved at %s</b>' % save_directory)
 		
 
 

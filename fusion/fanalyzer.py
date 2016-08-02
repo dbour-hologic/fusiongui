@@ -48,6 +48,10 @@ class FusionAnalysis():
 
 	def check_assay_types(self):
 
+		""" Checks if the assay types designated
+		on the file is the same as the one that is 
+		specified """
+
 		if (self.pcr_file['Analyte'][0] != self.assay_type):
 			return False
 		return True
