@@ -185,6 +185,17 @@ class FusionAnalysis():
 		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-4'].str.contains("neg", case=False), 'RED647 Rounded RFU Range (HPIV-4)'] = "-"
 		pcr_and_lis.loc[pcr_and_lis['Valid/Invalid for IC'].str.contains("Invalid", case=False), 'IC Rounded RFU Range'] = "-"
 
+		# Consolidate these columns since they more or less have the same information per channel
+		pcr_and_lis.loc[:,'WellID'] = pcr_and_lis['FAM-WellID']
+		pcr_and_lis.loc[:,'CapAndVialTrayID'] = pcr_and_lis['FAM-CapAndVialTrayID']
+		pcr_and_lis.loc[:,'Cartridge Lot #'] = pcr_and_lis['FAM-Cartridge Lot #']
+		pcr_and_lis.loc[:,'FCRBarcode'] = pcr_and_lis['FAM-FCRBarcode']
+		pcr_and_lis.loc[:,'FERBarcode'] = pcr_and_lis['FAM-FERBarcode']
+		pcr_and_lis.loc[:,'ElutionBufferRFID'] = pcr_and_lis['FAM-ElutionBufferRFID']
+		pcr_and_lis.loc[:,'ReconstitutionBufferRFID'] = pcr_and_lis['FAM-ReconstitutionBufferRFID']
+		pcr_and_lis.loc[:,'OilRFID'] = pcr_and_lis['FAM-OilRFID']
+		pcr_and_lis.loc[:,'FusionTestOrder'] = pcr_and_lis['FAM-FusionTestOrder']
+
 		# Final columns to keep
 		try:
 			save_as = pcr_and_lis[['Specimen Barcode', 

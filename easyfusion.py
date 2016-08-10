@@ -205,8 +205,8 @@ class FusionGui(QtGui.QWidget):
 				missing_lis_files.append(lis_files)
 				print("No matching PCR file found for %s" % lis_files)
 
-	 	# Remove PCR Keys
-	 	pcr_keys_to_remove = []
+		# Remove PCR Keys
+		pcr_keys_to_remove = []
 
 		# Checks if the PCR file is paired with a LIS file
 		for uniqueID, pairs in fusion_file_index.items():
