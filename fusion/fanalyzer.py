@@ -45,8 +45,6 @@ class FusionAnalysis():
 										dtype={'Test order #': object}
 										)
 
-
-
 	def check_assay_types(self):
 
 		""" Checks if the assay types designated
@@ -57,7 +55,6 @@ class FusionAnalysis():
 			return False
 		return True
 
-
 	def combine_files(self, assay_profile, save_to):
 
 		""" Combines the PCR & LIS Files 
@@ -65,7 +62,7 @@ class FusionAnalysis():
 			assay_profile - the type of assay to manipulate (str)
 			save_to - destination to save the file (str)
 		Returns:
-			None
+			the combined file dataframe object (obj)
 		Output:
 			Combined LIS & PCR file in *.csv format
 		"""
@@ -281,6 +278,8 @@ class FusionAnalysis():
 		# Save destination
 		save_as.to_excel(save_to)
 
+		return save_as
+
 	def trimmer(self, number, trim_front=0, trim_back=0):
 
 		"""
@@ -311,6 +310,15 @@ class FusionAnalysis():
 		    return object_to_string[:trim_back]
 
 		return object_to_string
+
+	def pq_analysis(self, combined_file, save_to):
+
+		""" Performs PQ Analysis on the combined file
+		Args:
+			combined_files - the combined file from 'combine_files'
+		Returns:
+			file with results of the PQ analysis 
+		"""
 
 if __name__ == '__main__':
 	pass
