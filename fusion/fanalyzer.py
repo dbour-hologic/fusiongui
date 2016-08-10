@@ -198,11 +198,7 @@ class FusionAnalysis():
 			save_as = pcr_and_lis[['Specimen Barcode', 
 			             'Sample Type', 'Analyte', 
 			             'Run ID', 
-			             'FAM-WellID', 
-			             'ROX-WellID',
-			             'HEX-WellID',
-			             'RED647-WellID', 
-			             'IC-WellID',
+			             'WellID',
 			             'Test order #', 
 			             'Instrument Flags',
 			             'FAM Rounded Ct',
@@ -220,43 +216,14 @@ class FusionAnalysis():
 			             'POS/NEG/Invalid for HPIV-3',
 			             'POS/NEG/Invalid for HPIV-4',
 			             'Valid/Invalid for IC',
-			             'Overall_Validity',
 			             'Serial Number',
-			             'FAM-CapAndVialTrayID',
-			             'ROX-CapAndVialTrayID',
-			             'HEX-CapAndVialTrayID',
-			             'RED647-CapAndVialTrayID',
-			             'IC-CapAndVialTrayID',
-			             'FAM-Cartridge Lot #',
-			             'ROX-Cartridge Lot #',
-			             'HEX-Cartridge Lot #',
-			             'RED647-Cartridge Lot #',
-			             'IC-Cartridge Lot #',
-			             'FAM-FCRBarcode',
-			             'ROX-FCRBarcode',
-			             'HEX-FCRBarcode',
-			             'RED647-FCRBarcode',
-			             'IC-FCRBarcode',
-			             'FAM-ElutionBufferRFID',
-			             'ROX-ElutionBufferRFID',
-			             'HEX-ElutionBufferRFID',
-			             'RED647-ElutionBufferRFID',
-			             'IC-ElutionBufferRFID',
-			             'FAM-ReconstitutionBufferRFID',
-			             'ROX-ReconstitutionBufferRFID',
-			             'HEX-ReconstitutionBufferRFID',
-			             'RED647-ReconstitutionBufferRFID',
-			             'IC-ReconstitutionBufferRFID',
-			             'FAM-OilRFID',
-			             'ROX-OilRFID',
-			             'HEX-OilRFID',
-			             'RED647-OilRFID',
-			             'IC-OilRFID',
-			             'FAM-FusionTestOrder',
-			             'ROX-FusionTestOrder',
-			             'HEX-FusionTestOrder',
-			             'RED647-FusionTestOrder',
-			             'IC-FusionTestOrder',
+			             'CapAndVialTrayID',
+			             'Cartridge Lot #',
+			             'FCRBarcode',
+			             'FERBarcode',
+			             'ElutionBufferRFID',
+			             'ReconstitutionBufferRFID',
+			             'OilRFID',
 			             'FAM-EstimatedBaseline',
 			             'ROX-EstimatedBaseline',
 			             'HEX-EstimatedBaseline',
@@ -276,7 +243,7 @@ class FusionAnalysis():
 			print("Error:", pcr_and_lis)
 
 		# Save destination
-		save_as.to_excel(save_to)
+		# save_as.to_excel(save_to)
 
 		return save_as
 
@@ -316,9 +283,115 @@ class FusionAnalysis():
 		""" Performs PQ Analysis on the combined file
 		Args:
 			combined_files - the combined file from 'combine_files'
+			save_to - the directory to save the summary results to
 		Returns:
 			file with results of the PQ analysis 
+
+		# LAB CONTROL SETTINGS
+		# These positive control usually begin with these prefix'd numbers
+		# Flu - 101101..####
+		# AMR - 102101..####
+		# Paraflu - 103101..#####
+		# Neg Control - 101111..#####
 		"""
 
+		# LAB CONTROL SETTINGS
+		flu_ctrl = r'101101.*'
+		amr_ctrl = r'102101.*'
+		par_ctrl = r'103101.*'
+		neg_ctrl = r'101111.*'
+
+		# The channel to compare and the new column to hold the PQ results
+		channel_comparisons = {
+			'FAM Rounded RFU Range (HPIV-1)':'PQ-FAM-RFU',
+			'HEX Rounded RFU Range (HPIV-2)':'PQ-HEX-RFU',
+			'ROX Rounded RFU Range (HPIV-3)':'PQ-ROX-RFU',
+			'RED647 Rounded RFU Range (HPIV-4)':'PQ-RED647-RFU'
+		}
+
+		for channel, pq_result in channel_comparisons.items():
+			combined_file[pq_result] = combined_file.loc[
+				combined_file['Specimen Barcode'].str.contains('PANEL', case=False) | 
+				combined_file['Specimen Barcode'].str.contains(par_ctrl)
+			][channel].apply(lambda rfu: self._pq_threshold(rfu, 'FAM'))
+
+		
+		
+	def _pq_threshold(self, rfu_range, channel_type):
+		""" Checks if the RFU range meets the specifications set in the 
+		PQ (performance quality) documentation.
+
+		Args:
+			rfu_range - the RFU range of the specified cahnnel (str)
+			channel_type - the type of channel (str)
+		Returns
+			(str) containing the values 'pass' or 'fail' depending on the criteria
+		"""
+
+		# PQ THRESHOLD SETTINGS
+		FAM_RFU_THRESHOLD_MIN = 1200
+		FAM_RFU_THRESHOLD_MAX = None
+		HEX_RFU_THRESHOLD_MIN = 2000
+		HEX_RFU_THRESHOLD_MAX = None
+		ROX_RFU_THRESHOLD_MIN = 1500
+		ROX_RFU_THRESHOLD_MAX = None
+		RED647_RFU_THRESHOLD_MIN = 400
+		RED647_RFU_THRESHOLD_MAX = None
+		IC_RFU_THRESHOLD_MIN = None
+		IC_RFU_THRESHOLD_MAX = None
+
+		THRESHOLD_SETTINGS = {
+		    'FAM': [FAM_RFU_THRESHOLD_MIN, FAM_RFU_THRESHOLD_MAX],
+		    'HEX': [HEX_RFU_THRESHOLD_MIN, HEX_RFU_THRESHOLD_MAX],
+		    'ROX': [ROX_RFU_THRESHOLD_MIN, ROX_RFU_THRESHOLD_MAX],
+		    'RED647': [RED647_RFU_THRESHOLD_MIN, RED647_RFU_THRESHOLD_MAX],
+		    'IC': [IC_RFU_THRESHOLD_MIN, IC_RFU_THRESHOLD_MAX],
+		}
+
+		# Determine the comparison cases
+
+		# Comparison Modes
+		# 0 = checks if RFU range is greater than min
+		# 1 = checks if RFU range is less than max
+		# 2 = checks if RFU range is between min and max
+		comparison_mode = 2
+		channel_settings = THRESHOLD_SETTINGS[channel_type]
+		rfu_range = float(rfu_range)
+
+
+		# If both are 'None', mark as 'pass' by default 
+		if channel_settings[0] == None and channel_settings[1] == None:
+		    return 'pass'
+
+		for number, check_none in enumerate(channel_settings):
+		    if check_none is not None:
+		        comparison_mode = number
+
+		if comparison_mode == 0:
+		    if rfu_range > channel_settings[0]:
+		        return 'pass'
+		elif comparison_mode == 1:
+		    if rfu_range < channel_settings[1]:
+		        return 'pass'
+		else:
+		    if channel_settings[0] < rfu_range < channel_settings[1]:
+		        return 'pass'
+
+		return 'fail'		
+
+
 if __name__ == '__main__':
-	pass
+
+	import os
+
+	lis_files = os.path.join(os.getcwd(), 'data', 'LIS')
+	pcr_files = os.path.join(os.getcwd(), 'data', 'PCR Data')
+
+	lis_list = [files for files in os.listdir(lis_files)]
+	pcr_list = [files for files in os.listdir(pcr_files)]
+
+	lis_file_read = os.path.join(lis_files, lis_list[23])
+	pcr_file_read = os.path.join(pcr_files, pcr_list[22])
+
+	p = FusionAnalysis(pcr_file_read, lis_file_read, "P 1/2/3/4")
+	p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx')), 'data')
