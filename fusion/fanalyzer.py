@@ -303,20 +303,60 @@ class FusionAnalysis():
 
 		# The channel to compare and the new column to hold the PQ results
 		channel_comparisons = {
-			'FAM Rounded RFU Range (HPIV-1)':'PQ-FAM-RFU',
-			'HEX Rounded RFU Range (HPIV-2)':'PQ-HEX-RFU',
-			'ROX Rounded RFU Range (HPIV-3)':'PQ-ROX-RFU',
-			'RED647 Rounded RFU Range (HPIV-4)':'PQ-RED647-RFU'
+			'FAM Rounded RFU Range (HPIV-1)':['PQ-FAM-RFU','FAM'],
+			'HEX Rounded RFU Range (HPIV-2)':['PQ-HEX-RFU','HEX'],
+			'ROX Rounded RFU Range (HPIV-3)':['PQ-ROX-RFU','ROX'],
+			'RED647 Rounded RFU Range (HPIV-4)':['PQ-RED647-RFU','RED647']
 		}
 
 		for channel, pq_result in channel_comparisons.items():
-			combined_file[pq_result] = combined_file.loc[
+			combined_file[pq_result[0]] = combined_file.loc[
 				combined_file['Specimen Barcode'].str.contains('PANEL', case=False) | 
 				combined_file['Specimen Barcode'].str.contains(par_ctrl)
-			][channel].apply(lambda rfu: self._pq_threshold(rfu, 'FAM'))
+			][channel].apply(lambda rfu: self._pq_threshold(rfu, pq_result[1]))
 
-		
-		
+		# Check PQs
+		failed_positive_pqs = self._pq_getfailedsamples(combined_file)
+
+		# Check for validity
+		invalid_positives = self._check_invalid_positives(combined_file)
+
+
+
+
+	def _check_invalid_positives(self, combined_file):
+
+		""" Checks if any of the non-negative samples 'positive' are invalid.
+		(1) If non-negative samples are invalid - it is invalid NO MATTER WHAT IC IS
+		(2) If non-negative samples are valid - it is valid NO MATTER WHAT IC IS
+		(3) If non-negative samples are negative - it is valid if IC IS POSITIVE, INVALID otherwise	
+
+		A non-negative sample here is something we know that isn't used as a negative control. 
+		It has some sort of product or we think it does.
+
+		Args:
+			combined_file - modified dataframe from _pq_threshold (obj)
+		Returns:
+			a list of invalid results. The list contains a list of each row
+			which correspondings to one sample. (Specimen Barcode) - (Run ID) - (Test order #) (list)
+		"""
+
+		pos_column = combined_file.loc[combined_file['Specimen Barcode'].str.contains('PANEL', case=False)]
+
+		# What about 'Invalid positives' BUT 'Valid IC' --- ASK THE TEAM
+		pos_aggregated = pos_column[
+		    (pos_column['POS/NEG/Invalid for HPIV-1'].str.contains('Invalid', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_column['POS/NEG/Invalid for HPIV-2'].str.contains('Invalid', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_column['POS/NEG/Invalid for HPIV-3'].str.contains('Invalid', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_column['POS/NEG/Invalid for HPIV-4'].str.contains('Invalid', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_column['POS/NEG/Invalid for HPIV-1'].str.contains('neg', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_column['POS/NEG/Invalid for HPIV-2'].str.contains('neg', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_column['POS/NEG/Invalid for HPIV-3'].str.contains('neg', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_column['POS/NEG/Invalid for HPIV-4'].str.contains('neg', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False))
+		]
+
+		return pos_aggregated[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+
 	def _pq_threshold(self, rfu_range, channel_type):
 		""" Checks if the RFU range meets the specifications set in the 
 		PQ (performance quality) documentation.
@@ -378,6 +418,36 @@ class FusionAnalysis():
 		        return 'pass'
 
 		return 'fail'		
+
+	def _pq_getfailedsamples(self, combined_file):
+		""" Get all of the samples marked as 'fail' (False)
+		from the _pq_threshold method.
+
+		Args:
+			combined_file - modified dataframe from _pq_threshold (obj)
+		Returns:
+			a dict of invalid results. The dict contains a channel(key) & list(value) of each row
+			which correspondings to one sample. (Specimen Barcode) - (Run ID) - (Test order #) (list)
+		"""
+
+		channels = {
+			'FAM':'PQ-FAM-RFU',
+			'HEX':'PQ-HEX-RFU',
+			'ROX':'PQ-ROX-RFU',
+			'RED647':'PQ-RED647-RFU'
+		}
+
+		failed_results = {}
+
+		for channel_type, channel_column in channels.items():
+			pq_group = combined_file.loc[
+				combined_file['Specimen Barcode'].str.contains('PANEL', case=False) &
+				combined_file[channel_column].str.contains('fail')
+			]
+			failed_results[channel_type] = pq_group[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+
+		return failed_results
+
 
 
 if __name__ == '__main__':
