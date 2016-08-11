@@ -286,7 +286,7 @@ class FusionAnalysis():
 
 		""" Performs PQ Analysis on the combined file
 		Args:
-			combined_files - the combined file from 'combine_files'
+			combined_file - the combined file from 'combine_files'
 			save_to - the directory to save the summary results to
 		Returns:
 			file with results of the PQ analysis 
@@ -326,6 +326,11 @@ class FusionAnalysis():
 		invalid_positives = self._check_invalid_positives(combined_file, par_ctrl)
 		invalid_negatives = self._check_invalid_negatives(combined_file, neg_ctrl)
 
+		# Check for false positives
+		false_pos = self._check_false_positives(combined_file, neg_ctrl)
+		
+		
+
 	def _check_invalid_negatives(self, combined_file, neg_ctrl_id):
 
 		""" Checks if any of the 'negative' samples are invalid
@@ -336,6 +341,7 @@ class FusionAnalysis():
 
 		Args:
 			combined_file - modified dataframe from _pq_threshold (obj) 
+			neg_ctrl_id - the negative control id (regex str) 
 		Returns:
 			a list of invalid results. The list contains a list of each row
 			which correspondings to one sample. (Specimen Barcode) - (Run ID) - (Test order #) (list)
@@ -380,6 +386,7 @@ class FusionAnalysis():
 
 		Args:
 			combined_file - modified dataframe from _pq_threshold (obj)
+			pos_ctrl_id - the positive control id (regex str) 
 		Returns:
 			a list of invalid results. The list contains a list of each row
 			which correspondings to one sample. (Specimen Barcode) - (Run ID) - (Test order #) (list)
@@ -420,9 +427,40 @@ class FusionAnalysis():
 
 		return final_result
 
-	def _check_false_positives(self, combined_file):
+	def _check_false_positives(self, combined_file, neg_ctrl_id):
 
-		pass
+		""" Checks if any of the 'negative' samples are false positives
+		Args:
+			combined_file - modified dataframe from _pq_threshold (obj)
+			neg_ctrl_id - the negative control id (regex str) 
+		Returns:
+			a list of false positive results. The list contains a list of each row
+			which correspondings to one sample. (Specimen Barcode) - (Run ID) - (Test order #) (list)
+		"""
+
+		negative_columns = combined_file.loc[combined_file['Specimen Barcode'].str.contains('neg', case=False)]
+
+		neg_aggregated_false_pos = negative_columns[
+			(negative_columns['POS/NEG/Invalid for HPIV-1']).str.contains('pos', case=False) | 
+			(negative_columns['POS/NEG/Invalid for HPIV-2']).str.contains('pos', case=False) |
+			(negative_columns['POS/NEG/Invalid for HPIV-3']).str.contains('pos', case=False) |
+			(negative_columns['POS/NEG/Invalid for HPIV-4']).str.contains('pos', case=False) 
+		]
+
+		# Adds a check for the negative control
+		neg_ctrl_column = combined_file.loc[combined_file['Specimen Barcode'].str.contains(neg_ctrl_id)]
+		neg_ctrl_false_pos = neg_ctrl_column[
+			(neg_ctrl_column['POS/NEG/Invalid for HPIV-1']).str.contains('pos', case=False) | 
+			(neg_ctrl_column['POS/NEG/Invalid for HPIV-2']).str.contains('pos', case=False) |
+			(neg_ctrl_column['POS/NEG/Invalid for HPIV-3']).str.contains('pos', case=False) |
+			(neg_ctrl_column['POS/NEG/Invalid for HPIV-4']).str.contains('pos', case=False) 
+		]
+
+		neg_false_pos = neg_aggregated_false_pos[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+		neg_ctrl_false_pos = neg_ctrl_false_pos[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+		final_result = neg_false_pos + neg_ctrl_false_pos
+
+		return final_result
 
 	def _pq_threshold(self, rfu_range, channel_type):
 		""" Checks if the RFU range meets the specifications set in the 
