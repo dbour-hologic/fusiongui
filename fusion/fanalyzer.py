@@ -352,16 +352,23 @@ class FusionAnalysis():
 				fields_to_write[validity_cat] = key_map[validity_cat]
 				is_valid = False
 		
-		self._write_out(fields_to_write, save_to, file_id)
+		self._write_out(fields_to_write, save_to, file_id, is_valid)
 
 		return is_valid
 
 
-	def _write_out(self, fields_to_output, save_dir, file_id):
+	def _write_out(self, fields_to_output, save_dir, file_id, is_valid):
 
 		import os
 
-		file_name = file_id + '-pq_results.tsv'
+		validity_tag = "PASS"
+
+		if not is_valid:
+			validity_tag = "FAIL"
+		
+		file_prex = "%s_PQ-" % (validity_tag)
+		file_name = file_prex + file_id + '-pq_results.tsv'
+
 		file_directory = os.path.join(save_dir, file_name)
 
 		try:
