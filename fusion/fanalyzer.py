@@ -132,6 +132,7 @@ class FusionAnalysis():
 		# Remove the '[end]' from 'Specimen Barcode', a designation for end of file that came from the automated Panther Software
 		pcr_file_filtered_columns = pcr_file_filtered_columns[~pcr_file_filtered_columns['Specimen Barcode'].str.contains('[end]', regex=False)]
 
+
 		# Pivot the PCR File - the long to wide conversion
 		pivot_pcr_file = pcr_file_filtered_columns.pivot(index='UniqueID', columns='Channel')
 
@@ -143,7 +144,7 @@ class FusionAnalysis():
 		# --- START LIS MODIFICATIONS
 
 		# Remove the '[end]' from 'Specimen Barcode', a designation for end of file that came from the automated Panther Software
-		self.lis_file = self.lis_file[~self.lis_file['Specimen Barcode'].str.contains('[end]')]
+		self.lis_file = self.lis_file[~self.lis_file['Specimen Barcode'].str.contains('[end]', regex=False)]
 
 		# # Check for overall validity
 		# ****NOTE: MIGHT HAVE TO RE-WRITE THIS INTO ANOTHER FUNCTION
@@ -247,7 +248,7 @@ class FusionAnalysis():
 			print("Error:", pcr_and_lis)
 
 		# Save destination
-		# save_as.to_excel(save_to)
+		save_as.to_excel(save_to)
 
 		return save_as
 
@@ -290,7 +291,9 @@ class FusionAnalysis():
 			save_to - the directory to save the summary results to (str)
 			file_id - the unique file id (str)
 		Returns:
-			file with results of the PQ analysis 
+
+			(primary) if run passes every PQ criteria, return boolean True, else false
+			(secondary) file with results of the PQ analysis 
 
 		# LAB CONTROL SETTINGS
 		# These positive control usually begin with these prefix'd numbers
@@ -358,34 +361,55 @@ class FusionAnalysis():
 
 		import os
 
-		file_directory = os.path.join(save_dir, file_id + '-pq_result.tsv')
+		file_name = file_id + '-pq_results.tsv'
+		file_directory = os.path.join(save_dir, file_name)
 
-		with open(file_directory, 'w') as writeout:
+		try:
+			with open(file_directory, 'w') as writeout:
 
-			if len(fields_to_output) > 0:
+				if len(fields_to_output) > 0:
 
-				for header, data in fields_to_output.items():
+					for header, data in fields_to_output.items():
 
-					if header == "is_failed_positive":
+						if header == "is_failed_positive":
 
-						writeout.write("FAIL REASON:\t" + "DID NOT MEET PQ THRESHOLD\n\n")
-						writeout.write("SPECIMEN BARCODE"+"\t"+"RUN ID"+"\t"+"TEST ORDER #\n")
-						for channel_type, sample_list in data.items():
-							if len(sample_list) > 0:
-								writeout.write("CHANNEL:\t" + channel_type + "\n")
-								for samples in sample_list:
-									writeout.write('\t'.join(samples) + "\n")
-					else:
-						writeout.write("FAIL REASON:\t" + header + '\n')
-						writeout.write("SPECIMEN BARCODE"+"\t"+"RUN ID"+"\t"+"TEST ORDER #\n")
-						for row in data:
-							join_lines = '\t'.join(row)
-							writeout.write(join_lines + "\n")
-			else:
+							writeout.write("FAIL REASON:\t" + "DID NOT MEET PQ THRESHOLD\n\n")
+							writeout.write("SPECIMEN BARCODE"+"\t"+"RUN ID"+"\t"+"TEST ORDER #\n")
+							for channel_type, sample_list in data.items():
+								if len(sample_list) > 0:
+									writeout.write("CHANNEL:\t" + channel_type + "\n")
+									for samples in sample_list:
+										writeout.write('\t'.join(samples) + "\n")
+						else:
+							writeout.write("FAIL REASON:\t" + header + '\n')
+							writeout.write("SPECIMEN BARCODE"+"\t"+"RUN ID"+"\t"+"TEST ORDER #\n")
+							for row in data:
+								join_lines = '\t'.join(row)
+								writeout.write(join_lines + "\n")
+				else:
 
-				writeout.write("PQ passed.")
+					writeout.write("PQ passed.")
+		except IOError:
+			print("Error writing PQ analysis output file.")
 
 	def _overall_validity(self, invalid_pos, invalid_neg, false_positives, failed_positives, combined_file):
+
+		""" Overall Validity is determined on the following criterias
+		(1) No invalids
+		(2) No false positive samples
+		(3) Controls have to work
+		(4) PQ thresholds have to be met
+			(4a) RED647 can have up to 2 failures
+
+		Args:
+			invalid_pos - a list of 'positive' samples that were marked as invalid (includes controls)
+			invalid_neg -  a list of 'negative' samples that were marked as invalid (includes controls)
+			false_positives - a list of false positive samples (includes controls)
+			failed_positives - a dictionary with channels and samples that failed in the specific channel  (includes controls)
+			combined_file - modified dataframe from _pq_threshold (obj)
+		Returns:
+			validity_checks - a dictionary containing all the categories(key) and if they passed the validity checks(values)
+		"""
 		
 		# Assume everything is correct at first
 		validity_checks = {

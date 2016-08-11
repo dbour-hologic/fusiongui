@@ -56,10 +56,12 @@ class FusionGui(QtGui.QWidget):
 		self.status_msg.setReadOnly(True)
 		self.status_msg.setStyleSheet("background-color: #EEF3F9;")
 		execute_run = QtGui.QPushButton("Save && Combine Files")
+		pq_run = QtGui.QPushButton("Run PQ && Combine Files")
 
 		vboxRun = QtGui.QVBoxLayout()
 		vboxRun.addWidget(self.status_msg)
 		vboxRun.addWidget(execute_run)
+		vboxRun.addWidget(pq_run)
 
 		lisUploadBox.setLayout(vboxLISFiles)
 		pcrUploadBox.setLayout(vboxPCRFiles)
@@ -76,11 +78,25 @@ class FusionGui(QtGui.QWidget):
 		upload_pcr_button.clicked.connect(self.populate_fields)
 		clear_upload_lis_button.clicked.connect(self.clear_upload_fields)
 		clear_upload_pcr_button.clicked.connect(self.clear_upload_fields)
-		execute_run.clicked.connect(self.run_program)
+		execute_run.clicked.connect(self.execute_run)
+		pq_run.clicked.connect(self.execute_run)
 
 		self.setGeometry(300,300,700,200)
 		self.setWindowTitle('Fusion LIS & PCR Combiner')
 		self.show()
+
+	def execute_run(self):
+		""" Checks which run to execute """
+
+		option = self.sender().text()
+
+		if option == 'Save && Combine Files':
+			self.run_program()
+		elif option == 'Run PQ && Combine Files':
+			self.run_program(pq=True)
+		else:
+			pass
+
 
 	def clear_upload_fields(self):
 		"""
@@ -121,7 +137,7 @@ class FusionGui(QtGui.QWidget):
 			for file_name in file_names:
 				list_to_populate.addItem(file_name)
 
-	def run_program(self):
+	def run_program(self, pq=False):
 		""" Executes the program """
 
 		save_directory = QtGui.QFileDialog.getExistingDirectory(self,'Select Save Directory')
@@ -144,9 +160,12 @@ class FusionGui(QtGui.QWidget):
 			else:
 				successful_run = FusionAnalysis(keypairs[0], keypairs[1], "P 1/2/3/4")
 				if successful_run.check_assay_types():
-					new_file_name = identifier + ".xlsx"
-					save_file_path = os.path.join(str(save_directory), new_file_name)
-					successful_run.combine_files("Paraflu", save_file_path)
+						new_file_name = identifier + ".xlsx" 
+						save_file_path = os.path.join(str(save_directory), new_file_name)
+						combined_file = successful_run.combine_files("Paraflu", save_file_path)
+						if pq:
+							successful_run.pq_analysis(combined_file, str(save_directory), identifier)
+
 				else:
 					self.status_msg.insertHtml('<b>ASSAY TYPE WARNING</b>: The files %s are not of the specified assay type<br>' % keypairs)
 
