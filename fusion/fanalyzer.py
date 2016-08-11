@@ -130,7 +130,7 @@ class FusionAnalysis():
                                                              				    pcr_file_filtered_columns['Test order #'])
 
 		# Remove the '[end]' from 'Specimen Barcode', a designation for end of file that came from the automated Panther Software
-		pcr_file_filtered_columns = pcr_file_filtered_columns[~pcr_file_filtered_columns['Specimen Barcode'].str.contains('[end]')]
+		pcr_file_filtered_columns = pcr_file_filtered_columns[~pcr_file_filtered_columns['Specimen Barcode'].str.contains('[end]', regex=False)]
 
 		# Pivot the PCR File - the long to wide conversion
 		pivot_pcr_file = pcr_file_filtered_columns.pivot(index='UniqueID', columns='Channel')
@@ -299,6 +299,9 @@ class FusionAnalysis():
 		# Neg Control - 101111..#####
 		"""
 
+		# Assume valid
+		is_valid = True
+
 		# LAB CONTROL SETTINGS
 		flu_ctrl = r'101101.*'
 		amr_ctrl = r'102101.*'
@@ -328,8 +331,90 @@ class FusionAnalysis():
 
 		# Check for false positives
 		false_pos = self._check_false_positives(combined_file, neg_ctrl)
+
+		overall_result = self._overall_validity(invalid_positives,invalid_negatives,false_pos,failed_positive_pqs,combined_file)
+
+		key_map = {
+			'invalid_pos_control':invalid_positives,
+			'invalid_neg_control':invalid_negatives,
+			'is_false_positive':false_pos,
+			'is_failed_positive':failed_positive_pqs
+		}
+
+		fields_to_write = {}
+
+		for validity_cat, status in overall_result.items():
+			if status == True:
+				fields_to_write[validity_cat] = key_map[validity_cat]
+				is_valid = False
 		
+		self._write_out(fields_to_write, save_to)
+
+		return is_valid
+
+
+	def _write_out(self, fields_to_output, save_dir):
+
+		import os
+		import time
+		import datetime
+
+		file_directory = os.path.join(save_dir, 'pq_result.tsv')
+
+		with open(file_directory, 'w') as writeout:
+
+			if len(fields_to_output) > 0:
+
+
+
+				for header, data in fields_to_output.items():
+
+					writeout.write(header + '\n')
+					for row in data:
+						join_lines = '\t'.join(row)
+						writeout.write(join_lines + "\n")
+			else:
+
+				writeout.write("PQ passed.")
+
+
+	def _overall_validity(self, invalid_pos, invalid_neg, false_positives, failed_positives, combined_file):
 		
+		# Assume everything is correct at first
+		validity_checks = {
+			'invalid_pos_control':False,
+			'invalid_neg_control':False,
+			'is_false_positive':False,
+			'is_failed_positive':False
+		}
+
+		if len(invalid_pos) > 1:
+			validity_checks['invalid_pos_control'] = True
+	
+		if len(invalid_neg) > 1:
+			validity_checks['invalid_neg_control'] = True
+	
+		if len(false_positives) > 1:
+			validity_checks['is_false_positive'] = True
+
+		# Exception:
+		# We can have up to 2 dropouts for RED647
+		# RED647 also has a strange cutoff condition - it has to meet the threshold, but 
+		# can also allow up to 2 below the treshold; effectly having a 'failed threshold criteria - 2 allowance >= 2' scenario.
+		# if len(failed_positives['RED647']) - 2 > 2 & len(failed)
+
+		for channel_type, channel_column in failed_positives.items():
+
+			if channel_type == 'HEX':
+				if len(channel_column) - 2 > 2:
+					validity_checks['is_failed-positive'] = True
+					break
+			if len(channel_column) > 1:
+				validity_checks['is_failed-positive'] = True
+				break
+
+		return validity_checks
+
 
 	def _check_invalid_negatives(self, combined_file, neg_ctrl_id):
 
@@ -441,7 +526,7 @@ class FusionAnalysis():
 		negative_columns = combined_file.loc[combined_file['Specimen Barcode'].str.contains('neg', case=False)]
 
 		neg_aggregated_false_pos = negative_columns[
-			(negative_columns['POS/NEG/Invalid for HPIV-1']).str.contains('pos', case=False) | 
+			~(negative_columns['POS/NEG/Invalid for HPIV-1']).str.contains('pos', case=False) | 
 			(negative_columns['POS/NEG/Invalid for HPIV-2']).str.contains('pos', case=False) |
 			(negative_columns['POS/NEG/Invalid for HPIV-3']).str.contains('pos', case=False) |
 			(negative_columns['POS/NEG/Invalid for HPIV-4']).str.contains('pos', case=False) 
@@ -569,4 +654,4 @@ if __name__ == '__main__':
 	pcr_file_read = os.path.join(pcr_files, pcr_list[22])
 
 	p = FusionAnalysis(pcr_file_read, lis_file_read, "P 1/2/3/4")
-	p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx')), 'data')
+	p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx')), os.getcwd())
