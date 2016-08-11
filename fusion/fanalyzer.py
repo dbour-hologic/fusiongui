@@ -323,12 +323,10 @@ class FusionAnalysis():
 		failed_positive_pqs = self._pq_getposfailedsamples(combined_file)
 
 		# Check for validity
-		invalid_positives = self._check_invalid_positives(combined_file)
-		print(self._check_invalid_negatives(combined_file))
+		invalid_positives = self._check_invalid_positives(combined_file, par_ctrl)
+		invalid_negatives = self._check_invalid_negatives(combined_file, neg_ctrl)
 
-
-
-	def _check_invalid_negatives(self, combined_file):
+	def _check_invalid_negatives(self, combined_file, neg_ctrl_id):
 
 		""" Checks if any of the 'negative' samples are invalid
 		(1) If 'negative' samples are invalid and IC is invalid - invalid run
@@ -355,11 +353,7 @@ class FusionAnalysis():
 
 		# Adds a check for the negative control
 
-		# This prefix'd number is what the negative controls for these experiments are labelled with.
-		# This could possibily change in the future.
-		neg_ctrl = r'101111.*'
-
-		neg_ctrl_check = combined_file.loc[combined_file['Specimen Barcode'].str.contains(neg_ctrl)]
+		neg_ctrl_check = combined_file.loc[combined_file['Specimen Barcode'].str.contains(neg_ctrl_id)]
 		invalid_neg_ctrl = neg_ctrl_check[
 			~(neg_ctrl_check['POS/NEG/Invalid for HPIV-1']).str.contains('neg', case=False) | 
 			~(neg_ctrl_check['POS/NEG/Invalid for HPIV-2']).str.contains('neg', case=False) |
@@ -374,7 +368,7 @@ class FusionAnalysis():
 
 		return final_result
 
-	def _check_invalid_positives(self, combined_file):
+	def _check_invalid_positives(self, combined_file, pos_ctrl_id):
 
 		""" Checks if any of the non-negative samples 'positive' are invalid.
 		(1) If non-negative samples are invalid - it is invalid NO MATTER WHAT IC IS
@@ -405,7 +399,30 @@ class FusionAnalysis():
 		    (pos_column['POS/NEG/Invalid for HPIV-4'].str.contains('neg', case=False) & pos_column['Valid/Invalid for IC'].str.contains('Invalid', case=False))
 		]
 
-		return pos_aggregated[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+		# Adds a check for the positive control
+
+		pos_ctrl_check = combined_file.loc[combined_file['Specimen Barcode'].str.contains(pos_ctrl_id)]
+
+		invalid_pos_ctrl = pos_ctrl_check[
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-1'].str.contains('Invalid', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-2'].str.contains('Invalid', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-3'].str.contains('Invalid', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-4'].str.contains('Invalid', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-1'].str.contains('neg', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-2'].str.contains('neg', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-3'].str.contains('neg', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False)) |
+		    (pos_ctrl_check['POS/NEG/Invalid for HPIV-4'].str.contains('neg', case=False) & pos_ctrl_check['Valid/Invalid for IC'].str.contains('Invalid', case=False))
+		]
+
+		pos_agg_list = pos_aggregated[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+		pos_ctrl_agg_list = invalid_pos_ctrl[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+		final_result = pos_agg_list + pos_ctrl_agg_list
+
+		return final_result
+
+	def _check_false_positives(self, combined_file):
+
+		pass
 
 	def _pq_threshold(self, rfu_range, channel_type):
 		""" Checks if the RFU range meets the specifications set in the 
