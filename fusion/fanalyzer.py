@@ -99,7 +99,7 @@ class FusionAnalysis():
 		                      'FAM Rounded Ct', 'HEX Rounded Ct', 'ROX Rounded Ct', 'RED647 Rounded Ct', 
 		                      'IC Rounded Ct', 'POS/NEG/Invalid for HPIV-1', 'POS/NEG/Invalid for HPIV-2',
 		                      'POS/NEG/Invalid for HPIV-3', 'POS/NEG/Invalid for HPIV-4',
-		                      'Valid/Invalid for IC','Overall_Validity', 'Serial Number', 'Sample Type', 'Sample Name',
+		                      'Valid/Invalid for IC', 'Serial Number', 'Sample Type', 'Sample Name',
 		                      'Test order #', 'FAM Rounded RFU Range (HPIV-1)', 'HEX Rounded RFU Range (HPIV-2)',
 		                      'IC Rounded RFU Range', 'RED647 Rounded RFU Range (HPIV-4)', 
 		                      'ROX Rounded RFU Range (HPIV-3)'
@@ -145,19 +145,23 @@ class FusionAnalysis():
 		# Remove the '[end]' from 'Specimen Barcode', a designation for end of file that came from the automated Panther Software
 		self.lis_file = self.lis_file[~self.lis_file['Specimen Barcode'].str.contains('[end]')]
 
-		# Check for overall validity
-		self.lis_file['Overall_Validity'] = "Valid"
-		self.lis_file['Overall_Validity'][(
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('neg') &
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('neg') &
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('neg') &
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('neg') &
-		                                (self.lis_file['Valid/Invalid for IC']).str.contains('Invalid')
-		                             ) |
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('Invalid') |
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('Invalid') |
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('Invalid') |
-		                                (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('Invalid')] = "Invalid"
+		# # Check for overall validity
+		# ****NOTE: MIGHT HAVE TO RE-WRITE THIS INTO ANOTHER FUNCTION
+		# 
+		# This was a quickfix at the time from Wesley's specification.
+		#
+		# self.lis_file['Overall_Validity'] = "Valid"
+		# self.lis_file['Overall_Validity'][(
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('neg') &
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('neg') &
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('neg') &
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('neg') &
+		#                                 (self.lis_file['Valid/Invalid for IC']).str.contains('Invalid')
+		#                              ) |
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('Invalid') |
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('Invalid') |
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('Invalid') |
+		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('Invalid')] = "Invalid"
 
 		# Filter Columns
 		lis_file_filtered_columns = self.lis_file[LIS_COLUMNS_KEEP]
@@ -316,13 +320,59 @@ class FusionAnalysis():
 			][channel].apply(lambda rfu: self._pq_threshold(rfu, pq_result[1]))
 
 		# Check PQs
-		failed_positive_pqs = self._pq_getfailedsamples(combined_file)
+		failed_positive_pqs = self._pq_getposfailedsamples(combined_file)
 
 		# Check for validity
 		invalid_positives = self._check_invalid_positives(combined_file)
+		print(self._check_invalid_negatives(combined_file))
 
 
 
+	def _check_invalid_negatives(self, combined_file):
+
+		""" Checks if any of the 'negative' samples are invalid
+		(1) If 'negative' samples are invalid and IC is invalid - invalid run
+
+		A 'negative' sample here is something that has no organisms in it 
+		at all. Completely blank and we expect it to be blank.
+
+		Args:
+			combined_file - modified dataframe from _pq_threshold (obj) 
+		Returns:
+			a list of invalid results. The list contains a list of each row
+			which correspondings to one sample. (Specimen Barcode) - (Run ID) - (Test order #) (list)
+		"""
+
+		neg_column = combined_file.loc[combined_file['Specimen Barcode'].str.contains('neg', case=False)]
+
+		neg_aggregated = neg_column[
+			~(neg_column['POS/NEG/Invalid for HPIV-1']).str.contains('neg', case=False) | 
+			~(neg_column['POS/NEG/Invalid for HPIV-2']).str.contains('neg', case=False) |
+			~(neg_column['POS/NEG/Invalid for HPIV-3']).str.contains('neg', case=False) |
+			~(neg_column['POS/NEG/Invalid for HPIV-4']).str.contains('neg', case=False) |
+			~(neg_column['Valid/Invalid for IC']).str.contains('valid', case=False)
+		]
+
+		# Adds a check for the negative control
+
+		# This prefix'd number is what the negative controls for these experiments are labelled with.
+		# This could possibily change in the future.
+		neg_ctrl = r'101111.*'
+
+		neg_ctrl_check = combined_file.loc[combined_file['Specimen Barcode'].str.contains(neg_ctrl)]
+		invalid_neg_ctrl = neg_ctrl_check[
+			~(neg_ctrl_check['POS/NEG/Invalid for HPIV-1']).str.contains('neg', case=False) | 
+			~(neg_ctrl_check['POS/NEG/Invalid for HPIV-2']).str.contains('neg', case=False) |
+			~(neg_ctrl_check['POS/NEG/Invalid for HPIV-3']).str.contains('neg', case=False) |
+			~(neg_ctrl_check['POS/NEG/Invalid for HPIV-4']).str.contains('neg', case=False) |
+			~(neg_ctrl_check['Valid/Invalid for IC']).str.contains('valid', case=False)
+		]
+
+		neg_agg_list = neg_aggregated[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+		neg_ctrl_agg_list = invalid_neg_ctrl[['Specimen Barcode','Run ID','Test order #']].values.tolist()
+		final_result = neg_agg_list + neg_ctrl_agg_list
+
+		return final_result
 
 	def _check_invalid_positives(self, combined_file):
 
@@ -362,7 +412,7 @@ class FusionAnalysis():
 		PQ (performance quality) documentation.
 
 		Args:
-			rfu_range - the RFU range of the specified cahnnel (str)
+			rfu_range - the RFU range of the specified channel (str)
 			channel_type - the type of channel (str)
 		Returns
 			(str) containing the values 'pass' or 'fail' depending on the criteria
@@ -419,7 +469,7 @@ class FusionAnalysis():
 
 		return 'fail'		
 
-	def _pq_getfailedsamples(self, combined_file):
+	def _pq_getposfailedsamples(self, combined_file):
 		""" Get all of the samples marked as 'fail' (False)
 		from the _pq_threshold method.
 
