@@ -282,12 +282,13 @@ class FusionAnalysis():
 
 		return object_to_string
 
-	def pq_analysis(self, combined_file, save_to):
+	def pq_analysis(self, combined_file, save_to, file_id):
 
 		""" Performs PQ Analysis on the combined file
 		Args:
-			combined_file - the combined file from 'combine_files'
-			save_to - the directory to save the summary results to
+			combined_file - the combined file from 'combine_files' (obj)
+			save_to - the directory to save the summary results to (str)
+			file_id - the unique file id (str)
 		Returns:
 			file with results of the PQ analysis 
 
@@ -335,8 +336,8 @@ class FusionAnalysis():
 		overall_result = self._overall_validity(invalid_positives,invalid_negatives,false_pos,failed_positive_pqs,combined_file)
 
 		key_map = {
-			'invalid_pos_control':invalid_positives,
-			'invalid_neg_control':invalid_negatives,
+			'invalid_positives':invalid_positives,
+			'invalid_negatives':invalid_negatives,
 			'is_false_positive':false_pos,
 			'is_failed_positive':failed_positive_pqs
 		}
@@ -348,73 +349,76 @@ class FusionAnalysis():
 				fields_to_write[validity_cat] = key_map[validity_cat]
 				is_valid = False
 		
-		self._write_out(fields_to_write, save_to)
+		self._write_out(fields_to_write, save_to, file_id)
 
 		return is_valid
 
 
-	def _write_out(self, fields_to_output, save_dir):
+	def _write_out(self, fields_to_output, save_dir, file_id):
 
 		import os
-		import time
-		import datetime
 
-		file_directory = os.path.join(save_dir, 'pq_result.tsv')
+		file_directory = os.path.join(save_dir, file_id + '-pq_result.tsv')
 
 		with open(file_directory, 'w') as writeout:
 
 			if len(fields_to_output) > 0:
 
-
-
 				for header, data in fields_to_output.items():
 
-					writeout.write(header + '\n')
-					for row in data:
-						join_lines = '\t'.join(row)
-						writeout.write(join_lines + "\n")
+					if header == "is_failed_positive":
+
+						writeout.write("FAIL REASON:\t" + "DID NOT MEET PQ THRESHOLD\n\n")
+						writeout.write("SPECIMEN BARCODE"+"\t"+"RUN ID"+"\t"+"TEST ORDER #\n")
+						for channel_type, sample_list in data.items():
+							if len(sample_list) > 0:
+								writeout.write("CHANNEL:\t" + channel_type + "\n")
+								for samples in sample_list:
+									writeout.write('\t'.join(samples) + "\n")
+					else:
+						writeout.write("FAIL REASON:\t" + header + '\n')
+						writeout.write("SPECIMEN BARCODE"+"\t"+"RUN ID"+"\t"+"TEST ORDER #\n")
+						for row in data:
+							join_lines = '\t'.join(row)
+							writeout.write(join_lines + "\n")
 			else:
 
 				writeout.write("PQ passed.")
-
 
 	def _overall_validity(self, invalid_pos, invalid_neg, false_positives, failed_positives, combined_file):
 		
 		# Assume everything is correct at first
 		validity_checks = {
-			'invalid_pos_control':False,
-			'invalid_neg_control':False,
+			'invalid_positives':False,
+			'invalid_negatives':False,
 			'is_false_positive':False,
 			'is_failed_positive':False
 		}
 
 		if len(invalid_pos) > 1:
-			validity_checks['invalid_pos_control'] = True
+			validity_checks['invalid_positives'] = True
 	
 		if len(invalid_neg) > 1:
-			validity_checks['invalid_neg_control'] = True
+			validity_checks['invalid_negatives'] = True
 	
 		if len(false_positives) > 1:
 			validity_checks['is_false_positive'] = True
 
+		# Can only have one 'failed' to meet PQ threshold
 		# Exception:
-		# We can have up to 2 dropouts for RED647
-		# RED647 also has a strange cutoff condition - it has to meet the threshold, but 
-		# can also allow up to 2 below the treshold; effectly having a 'failed threshold criteria - 2 allowance >= 2' scenario.
-		# if len(failed_positives['RED647']) - 2 > 2 & len(failed)
+		# We can have up to 2 'failed to meet PQ threshold' for RED647
 
 		for channel_type, channel_column in failed_positives.items():
 
 			if channel_type == 'HEX':
-				if len(channel_column) - 2 > 2:
-					validity_checks['is_failed-positive'] = True
+				if len(channel_column) > 2:
+					validity_checks['is_failed_positive'] = True
 					break
 			if len(channel_column) > 1:
-				validity_checks['is_failed-positive'] = True
+				validity_checks['is_failed_positive'] = True
 				break
 
 		return validity_checks
-
 
 	def _check_invalid_negatives(self, combined_file, neg_ctrl_id):
 
@@ -526,7 +530,7 @@ class FusionAnalysis():
 		negative_columns = combined_file.loc[combined_file['Specimen Barcode'].str.contains('neg', case=False)]
 
 		neg_aggregated_false_pos = negative_columns[
-			~(negative_columns['POS/NEG/Invalid for HPIV-1']).str.contains('pos', case=False) | 
+			(negative_columns['POS/NEG/Invalid for HPIV-1']).str.contains('pos', case=False) | 
 			(negative_columns['POS/NEG/Invalid for HPIV-2']).str.contains('pos', case=False) |
 			(negative_columns['POS/NEG/Invalid for HPIV-3']).str.contains('pos', case=False) |
 			(negative_columns['POS/NEG/Invalid for HPIV-4']).str.contains('pos', case=False) 
@@ -586,6 +590,11 @@ class FusionAnalysis():
 		# 2 = checks if RFU range is between min and max
 		comparison_mode = 2
 		channel_settings = THRESHOLD_SETTINGS[channel_type]
+
+		# Quick hacky fix for postive samples with no data
+		if (rfu_range == '-'):
+			rfu_range = 0
+
 		rfu_range = float(rfu_range)
 
 
@@ -650,8 +659,8 @@ if __name__ == '__main__':
 	lis_list = [files for files in os.listdir(lis_files)]
 	pcr_list = [files for files in os.listdir(pcr_files)]
 
-	lis_file_read = os.path.join(lis_files, lis_list[23])
-	pcr_file_read = os.path.join(pcr_files, pcr_list[22])
+	lis_file_read = os.path.join(lis_files, lis_list[0])
+	pcr_file_read = os.path.join(pcr_files, pcr_list[0])
 
 	p = FusionAnalysis(pcr_file_read, lis_file_read, "P 1/2/3/4")
-	p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx')), os.getcwd())
+	p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx')), os.getcwd(), '@DI209000001-20160811-165658-000001-20160810-01')
