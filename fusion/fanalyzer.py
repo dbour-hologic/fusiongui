@@ -356,7 +356,6 @@ class FusionAnalysis():
 
 		return is_valid
 
-
 	def _write_out(self, fields_to_output, save_dir, file_id, is_valid):
 
 		import os
@@ -678,6 +677,28 @@ class FusionAnalysis():
 
 		return failed_results
 
+class FusionCombiner(FusionAnalysis):
+
+	def __init__(self,  reference_dataframe, *args, **kwargs):
+
+		self.list_of_dataframes = [df for df in args]
+		self.list_of_dataframes.append(reference_dataframe)
+		self.combination = pd.concat(self.list_of_dataframes)
+
+	def printout(self):
+		pd.set_option('display.max_rows', None)
+		pd.set_option('display.max_columns', None)
+		pd.set_option('display.width', 1000)
+		pd.set_option('display.height', 1000)
+		pd.set_option('display.expand_frame_repr', False)
+		print(self.combination)
+		# self.combination.to_excel(os.path.join(os.getcwd(),'sampletest_combineds.xlsx'))
+
+	def aggr(self):
+		g = self.combination[self.combination['Specimen Barcode'].str.contains('Panel', case=False)]
+		h = g[~g['FAM Rounded Ct'].str.contains('Invalid', case=False)]
+		ok = h['FAM Rounded Ct'].astype(float)
+		print(ok.mean())
 
 
 if __name__ == '__main__':
@@ -693,5 +714,17 @@ if __name__ == '__main__':
 	lis_file_read = os.path.join(lis_files, lis_list[0])
 	pcr_file_read = os.path.join(pcr_files, pcr_list[0])
 
+	lis_file_read2 = os.path.join(lis_files, lis_list[1])
+	pcr_file_read2 = os.path.join(pcr_files, pcr_list[1])
+
 	p = FusionAnalysis(pcr_file_read, lis_file_read, "P 1/2/3/4")
-	p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx')), os.getcwd(), '@DI209000001-20160811-165658-000001-20160810-01')
+	pp = p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx'))
+	p2 = FusionAnalysis(pcr_file_read2, lis_file_read2, "P 1/2/3/4")
+	pp2 = p2.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest2.xlsx'))
+	p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'samplepq.xlsx')), os.getcwd(), 'lol')
+
+	ff = FusionCombiner(pp, pp2)
+	ff.aggr()
+	
+
+	# p.pq_analysis(p.combine_files('P 1/2/3/4', os.path.join(os.getcwd(),'sampletest.xlsx')), os.getcwd(), '@DI209000001-20160811-165658-000001-20160810-01')
