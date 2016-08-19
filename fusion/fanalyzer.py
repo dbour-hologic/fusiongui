@@ -85,7 +85,7 @@ class FusionAnalysis():
 				"ElutionBufferRFID":(4,11),
 				"ReconstitutionBufferRFID":(4,11),
 				"OilRFID":(4,11)
-			}		
+			}
 
 	def __change_column_names(self, assay_type, dframe, name_map):
 		""" (PRIVATE) Change column name is an internal method used
@@ -161,162 +161,80 @@ class FusionAnalysis():
 
 		return object_to_string
 
-
-	def combine_files(self, assay_profile, save_to):
+	def combine_files(self, assay_type, *args, **kwargs):
 
 		""" Combines the PCR & LIS Files 
 		Args:
-			assay_profile - the type of assay to manipulate (str)
+			assay_type - the type of assay to manipulate (str)
 			save_to - destination to save the file (str)
+		Optional:
+			*args: None
+			**kwargs:
+				name_space - the columns you want to keep (list)
 		Returns:
 			the combined file dataframe object (obj)
+		"""
+
+		name_space = kwargs.get("name_space", None)
+
+
+		if assay_type == "P 1/2/3/4":
+
+
+			pcr_unique_id = self.pcr_file['Specimen Barcode'] + '_' + self.pcr_file['Run ID'] + "_" + self.pcr_file['Test order #']
+			self.pcr_file = self.pcr_file.assign(UniqueID = pcr_unique_id)
+			# Remove end of the file desgination set by Panther (Messes up 'pivot')
+			# The '~' is a special PANDAS feature, it acts as a not equal ( i.e. != )
+			self.pcr_file = self.pcr_file[~self.pcr_file['Specimen Barcode'].str.contains('[end]', regex=False)]
+			self.pivot_pcr_file = self.pcr_file.pivot(index='UniqueID', columns='Channel')
+			# This essentially appends "Channel name" + "Column name"
+			self.pivot_pcr_file.columns = [name[1] + '-' + name[0] for name in self.pivot_pcr_file.columns.values]
+
+			lis_unique_id = self.lis_file['Specimen Barcode'] + '_' + self.lis_file['Run ID'] + "_" + self.lis_file['Test order #']
+			self.lis_file = self.lis_file[~self.lis_file['Specimen Barcode'].str.contains('[end]',  regex=False)]
+			self.lis_file = self.lis_file.assign(UniqueID = lis_unique_id)
+			self.lis_file = self.lis_file.set_index(['UniqueID'])
+
+			# Magic pivot ! Like EXCEL
+			pcr_and_lis = self.lis_file.join(self.pivot_pcr_file)
+		
+			# Reduces the amount of columns; we use only one channel to make a general channel name
+			# Since they all effectly have the values across each channel. It should never be different! hah...
+			self.consolidation_map = {
+				"WellID": "FAM-WellID",
+				"CapAndVialTrayID":"FAM-CapAndVialTrayID",
+				"Cartridge Lot #":"FAM-Cartridge Lot #",
+				"FCRBarcode":"FAM-FCRBarcode",
+				"FERBarcode":"FAM-FERBarcode",
+				"ElutionBufferRFID":"FAM-ElutionBufferRFID",
+				"ReconstitutionBufferRFID":"FAM-ReconstitutionBufferRFID",
+				"OilRFID":"FAM-OilRFID",
+				"FusionTestOrder":"FAM-FusionTestOrder",
+			}
+
+			for new_col, old_col in self.consolidation_map.items():
+				pcr_and_lis.loc[:,new_col] = pcr_and_lis[old_col]
+
+			if name_space:
+				return pcr_and_lis[name_space]
+			return pcr_and_lis
+
+	def save_combed(self, df_combined, save_to):
+		"""
+		Saves dataframe as an Excel file. This is done on purpose
+		to prevent the long string of numbers from being automatically
+		converted in Excel when opening it as a .csv/.tsv
+
+		Args:
+			df_combined - a combined dataframe
+			save_to - path to save combined file
+		Returns:
+			None
 		Output:
 			Combined LIS & PCR file in *.csv format
 		"""
 
-
-
-		# -----------> STARTING HERE IS PARAFLU SPECIFIC
-
-		# --- START PCR MODIFICATIONS
-
-		# Partition the barcode numbers
-		self.pcr_file['CapAndVialTrayID'] = self.pcr_file['CapAndVialTrayID'].apply(lambda num: self.trimmer(num, trim_front=2, trim_back=10)) 
-		self.pcr_file['FCRBarcode'] = self.pcr_file['FCRBarcode'].apply(lambda num: self.trimmer(num, trim_front=4, trim_back=11))
-		self.pcr_file['FERBarcode'] = self.pcr_file['FERBarcode'].apply(lambda num: self.trimmer(num, trim_front=4, trim_back=11))
-		self.pcr_file['ElutionBufferRFID'] = self.pcr_file['ElutionBufferRFID'].apply(lambda num: self.trimmer(num, trim_front=4, trim_back=11))
-		self.pcr_file['ReconstitutionBufferRFID'] = self.pcr_file['ReconstitutionBufferRFID'].apply(lambda num: self.trimmer(num,trim_front=4, trim_back=11))
-		self.pcr_file['OilRFID'] = self.pcr_file['OilRFID'].apply(lambda num: self.trimmer(num, trim_front=4, trim_back=11))
-
-		pcr_file_filtered_columns = self.pcr_file[PCR_COLUMNS_KEEP]
-
-		# Add an extra column to help group the subjects. Will later to be used for combining with another dataframe.
-		pcr_file_filtered_columns = pcr_file_filtered_columns.assign(UniqueID = pcr_file_filtered_columns['Specimen Barcode'] + "_" + 
-                                                             					pcr_file_filtered_columns['Run ID'] + "_" + 
-                                                             				    pcr_file_filtered_columns['Test order #'])
-
-		# Remove the '[end]' from 'Specimen Barcode', a designation for end of file that came from the automated Panther Software
-		pcr_file_filtered_columns = pcr_file_filtered_columns[~pcr_file_filtered_columns['Specimen Barcode'].str.contains('[end]', regex=False)]
-
-
-		# Pivot the PCR File - the long to wide conversion
-		pivot_pcr_file = pcr_file_filtered_columns.pivot(index='UniqueID', columns='Channel')
-
-		# Merge columns from multilayer to single layer headers
-		pivot_pcr_file.columns = [name[1]+"-"+name[0] for name in pivot_pcr_file.columns.values]
-
-		# --- END PCR MODIFICATIONS
-
-		# --- START LIS MODIFICATIONS
-
-		# Remove the '[end]' from 'Specimen Barcode', a designation for end of file that came from the automated Panther Software
-		self.lis_file = self.lis_file[~self.lis_file['Specimen Barcode'].str.contains('[end]', regex=False)]
-
-		# # Check for overall validity
-		# ****NOTE: MIGHT HAVE TO RE-WRITE THIS INTO ANOTHER FUNCTION
-		# 
-		# This was a quickfix at the time from Wesley's specification.
-		#
-		# self.lis_file['Overall_Validity'] = "Valid"
-		# self.lis_file['Overall_Validity'][(
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('neg') &
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('neg') &
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('neg') &
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('neg') &
-		#                                 (self.lis_file['Valid/Invalid for IC']).str.contains('Invalid')
-		#                              ) |
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-1']).str.contains('Invalid') |
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-2']).str.contains('Invalid') |
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-3']).str.contains('Invalid') |
-		#                                 (self.lis_file['POS/NEG/Invalid for HPIV-4']).str.contains('Invalid')] = "Invalid"
-
-		# Filter Columns
-		lis_file_filtered_columns = self.lis_file[LIS_COLUMNS_KEEP]
-
-		# Now let's give the table a unique id like we did for the PCR data so we can re-combine them!  
-		# Add an extra column to help group the subjects. Will later to be used for combining with another dataframe.
-		lis_file_filtered_columns = lis_file_filtered_columns.assign(UniqueID = lis_file_filtered_columns['Specimen Barcode'] + "_" + 
-		                                                            			lis_file_filtered_columns['Run ID'] + "_" + 
-		                                                             			lis_file_filtered_columns['Test order #'])
-		lis_file_filtered_columns = lis_file_filtered_columns.set_index(['UniqueID'])
-
-		# --- END LIS MODIFICATIONS
-		# --- START COMBINING
-
-		# Combine Files on Unique Key
-		pcr_and_lis = lis_file_filtered_columns.join(pivot_pcr_file)
-
-		# Logic calls to see if a positive hit was found, if not, mark the RFU Range channel with a "-".
-		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-1'].str.contains("neg", case=False), 'FAM Rounded RFU Range (HPIV-1)'] = "-"
-		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-2'].str.contains("neg", case=False), 'HEX Rounded RFU Range (HPIV-2)'] = "-"
-		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-3'].str.contains("neg", case=False), 'ROX Rounded RFU Range (HPIV-3)'] = "-"
-		pcr_and_lis.loc[pcr_and_lis['POS/NEG/Invalid for HPIV-4'].str.contains("neg", case=False), 'RED647 Rounded RFU Range (HPIV-4)'] = "-"
-		pcr_and_lis.loc[pcr_and_lis['Valid/Invalid for IC'].str.contains("Invalid", case=False), 'IC Rounded RFU Range'] = "-"
-
-		# Consolidate these columns since they more or less have the same information per channel
-		pcr_and_lis.loc[:,'WellID'] = pcr_and_lis['FAM-WellID']
-		pcr_and_lis.loc[:,'CapAndVialTrayID'] = pcr_and_lis['FAM-CapAndVialTrayID']
-		pcr_and_lis.loc[:,'Cartridge Lot #'] = pcr_and_lis['FAM-Cartridge Lot #']
-		pcr_and_lis.loc[:,'FCRBarcode'] = pcr_and_lis['FAM-FCRBarcode']
-		pcr_and_lis.loc[:,'FERBarcode'] = pcr_and_lis['FAM-FERBarcode']
-		pcr_and_lis.loc[:,'ElutionBufferRFID'] = pcr_and_lis['FAM-ElutionBufferRFID']
-		pcr_and_lis.loc[:,'ReconstitutionBufferRFID'] = pcr_and_lis['FAM-ReconstitutionBufferRFID']
-		pcr_and_lis.loc[:,'OilRFID'] = pcr_and_lis['FAM-OilRFID']
-		pcr_and_lis.loc[:,'FusionTestOrder'] = pcr_and_lis['FAM-FusionTestOrder']
-
-		# Final columns to keep
-		try:
-			save_as = pcr_and_lis[['Specimen Barcode', 
-			             'Sample Type', 'Analyte', 
-			             'Run ID', 
-			             'WellID',
-			             'Test order #', 
-			             'Instrument Flags',
-			             'FAM Rounded Ct',
-			             'FAM Rounded RFU Range (HPIV-1)',
-			             'HEX Rounded Ct',
-			             'HEX Rounded RFU Range (HPIV-2)',
-			             'ROX Rounded Ct',
-			             'ROX Rounded RFU Range (HPIV-3)',
-			             'RED647 Rounded Ct',
-			             'RED647 Rounded RFU Range (HPIV-4)',
-			             'IC Rounded Ct',
-			             'IC Rounded RFU Range',
-			             'POS/NEG/Invalid for HPIV-1',
-			             'POS/NEG/Invalid for HPIV-2',
-			             'POS/NEG/Invalid for HPIV-3',
-			             'POS/NEG/Invalid for HPIV-4',
-			             'Valid/Invalid for IC',
-			             'Serial Number',
-			             'CapAndVialTrayID',
-			             'Cartridge Lot #',
-			             'FCRBarcode',
-			             'FERBarcode',
-			             'ElutionBufferRFID',
-			             'ReconstitutionBufferRFID',
-			             'OilRFID',
-			             'FAM-EstimatedBaseline',
-			             'ROX-EstimatedBaseline',
-			             'HEX-EstimatedBaseline',
-			             'RED647-EstimatedBaseline',
-			             'IC-EstimatedBaseline',
-			             'FAM-LR_TSlope_NonNormalized',
-			             'ROX-LR_TSlope_NonNormalized',
-			             'HEX-LR_TSlope_NonNormalized',
-			             'RED647-LR_TSlope_NonNormalized',
-			             'IC-LR_TSlope_NonNormalized',
-			             'FAM-Unrounded RFU Range',
-			             'ROX-Unrounded RFU Range',
-			             'HEX-Unrounded RFU Range',
-			             'RED647-Unrounded RFU Range',
-			             'IC-Unrounded RFU Range']]
-		except KeyError:
-			print("Error:", pcr_and_lis)
-
-		# Save destination
-		save_as.to_excel(save_to)
-
-		return save_as
+		df_combined.to_excel(save_to)
 
 
 	def pq_analysis(self, combined_file, save_to, file_id):

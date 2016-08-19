@@ -37,6 +37,15 @@ class FileCombiner(unittest.TestCase):
         for columns, values in id_map.items():
             self.assertEqual(self.dataframe.pcr_file[columns][0], values, "ID does not match")
 
+    def test_combination_file(self):
+        combination = self.dataframe.combine_files("P 1/2/3/4")
+        self.assertTrue('WellID' in combination)
+        self.assertTrue('Specimen Barcode' in combination)
+
+    def test_combination_file_filter(self):
+        combination = self.dataframe.combine_files("P 1/2/3/4", name_space=['Specimen Barcode'])
+        self.assertTrue('Specimen Barcode' in combination)
+        self.assertRaises(KeyError, lambda: combination['WellID'])
 
         
 if __name__ == '__main__':
