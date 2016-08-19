@@ -2,7 +2,7 @@ import unittest
 import pandas as pd
 from .fanalyzer import FusionAnalysis
 
-class FileLoadsCorrectly(unittest.TestCase):
+class FileCombiner(unittest.TestCase):
     
     def setUp(self):
         
@@ -25,6 +25,18 @@ class FileLoadsCorrectly(unittest.TestCase):
         self.assertRaises(KeyError, lambda: self.dataframe.lis_file['Interpretation 2'])
         self.assertTrue('Unrounded RFU Range' in self.dataframe.pcr_file)
         self.assertTrue('IC Rounded Ct' in self.dataframe.lis_file)
+
+    def test_trimmer(self):
+
+        id_map = {
+            "CapAndVialTrayID":"444383",
+            "ElutionBufferRFID":"165629",
+            "ReconstitutionBufferRFID":"144364"
+        }
+
+        for columns, values in id_map.items():
+            self.assertEqual(self.dataframe.pcr_file[columns][0], values, "ID does not match")
+
 
         
 if __name__ == '__main__':

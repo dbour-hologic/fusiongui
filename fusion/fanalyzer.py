@@ -17,9 +17,6 @@ class FusionAnalysis():
 
 	Features:
 		1) Combine PCR & LIS files
-		2) Statistical Analysis 
-		3) PQ (Performance Qualification) 
-
 	"""
 
 	def __init__(self, pcr_path, lis_path, assay_type, *args, **kwargs):
@@ -27,6 +24,9 @@ class FusionAnalysis():
 		# Holds the columns to rename
 		self.pcr_columns_rename = {}
 		self.lis_columns_rename = {}
+
+		# Holds the trim parameters
+		self.trim_map = {}
 
 		if (assay_type == 'P 1/2/3/4'):
 
@@ -50,6 +50,7 @@ class FusionAnalysis():
 		self.__set_variables(assay_type)
 		self.__change_column_names(assay_type, self.lis_file, self.lis_columns_rename)
 		self.__change_column_names(assay_type, self.pcr_file, self.pcr_columns_rename)
+		self.__trim_column_values(assay_type, self.pcr_file, self.trim_map)
 
 	def __set_variables(self, assay_type):
 		""" (PRIVATE) Method is currently used as a substitution for
@@ -75,8 +76,16 @@ class FusionAnalysis():
 							'OtherData 2':'HEX Rounded RFU Range (HPIV-2)',
 							'OtherData 3':'IC Rounded RFU Range',
 							'OtherData 4':'RED647 Rounded RFU Range (HPIV-4)',
-							'OtherData 5':'ROX Rounded RFU Range (HPIV-3)'}			
+							'OtherData 5':'ROX Rounded RFU Range (HPIV-3)'}	
 
+			self.trim_map = {
+				"CapAndVialTrayID":(2,10),
+				"FCRBarcode":(4,11),
+				"FERBarcode":(4,11),
+				"ElutionBufferRFID":(4,11),
+				"ReconstitutionBufferRFID":(4,11),
+				"OilRFID":(4,11)
+			}		
 
 	def __change_column_names(self, assay_type, dframe, name_map):
 		""" (PRIVATE) Change column name is an internal method used
@@ -100,6 +109,59 @@ class FusionAnalysis():
 
 		dframe.rename(columns=name_map, inplace=True)
 
+	def __trim_column_values(self, assay_type, dframe, name_map):
+		""" (PRIVATE) Trim column values according to a user
+	 	specified settings file. Ideally all of the settings for specific
+	 	assays will be loaded through JSON, but are hard coded for now.
+
+	 	Main purpose: Some 'barcodes' have extra numbers appended
+	 	as a suffix or prefix. This will help extract the actual barcode number
+	 	from the string of numbers
+
+	 	Args:
+			assay_type - assay type to run <flu, paraflu, adeno, etc> (str)
+			dframe - the dataframe to manipulate <LIS or PCR> (obj)
+			name_map - mapping of column and coordinates (dict)
+		Returns:
+			None
+		"""
+
+		if assay_type == "P 1/2/3/4":
+			for column, coord in name_map.items():
+				dframe[column] = dframe[column].apply(lambda num: self.__trimmer(num, trim_front=coord[0], trim_back=coord[1]))
+
+	def __trimmer(self, number, trim_front=0, trim_back=0):
+
+		"""
+		Trimmer takes in an ID number, (obj) representation
+		and parses out the selected segment depending on the
+		parameters.
+
+		Args:
+		    number - the number to parse (obj)
+		    trim_front - how many characters to remove from the beginning of number (int)
+		    trim_back - how many characters to remove starting from end to beginning of number (int)
+		Returns:
+		     the result of the parsed number string (str)
+		"""
+		# Convert to an actual object representation
+		object_to_string = str(number)
+
+		if trim_front > 0 and trim_back > 0:
+		    # Convert to trim backwards
+		    trim_back *= -1
+		    after_trim_beginning = object_to_string[trim_front:]
+		    after_trim_ending = after_trim_beginning[:trim_back]
+		    return after_trim_ending
+		elif trim_front > 0:
+		    return object_to_string[trim_front:]
+		elif trim_back > 0:
+		    trim_back *= -1
+		    return object_to_string[:trim_back]
+
+		return object_to_string
+
+
 	def combine_files(self, assay_profile, save_to):
 
 		""" Combines the PCR & LIS Files 
@@ -112,48 +174,7 @@ class FusionAnalysis():
 			Combined LIS & PCR file in *.csv format
 		"""
 
-		# Universal Settings - Can move to a JSON configuration later
-		CHANGE_PCR_COLUMN_NAMES = True
-		CHANGE_PCR_COLUMN_DICT = {'RFU Range':'Unrounded RFU Range',
-								  'LR_Ct_NonNormalized':'Unrounded Ct'}
-		CHANGE_LIS_COLUMN_NAMES = True
-		CHANGE_LIS_COLUMN_DICT = {'Interpretation 1':'FAM Rounded Ct',
-                           		  'Interpretation 2':'HEX Rounded Ct',
-		                          'Interpretation 3':'ROX Rounded Ct',
-		                          'Interpretation 4':'RED647 Rounded Ct',
-		                          'Interpretation 5':'IC Rounded Ct',
-		                          'Interpretation 6':'POS/NEG/Invalid for HPIV-1',
-		                          'Interpretation 7':'POS/NEG/Invalid for HPIV-2',
-		                          'Interpretation 8':'POS/NEG/Invalid for HPIV-3',
-		                          'Interpretation 9':'POS/NEG/Invalid for HPIV-4',
-		                          'Interpretation 10':'Valid/Invalid for IC',
-		                          'OtherData 1':'FAM Rounded RFU Range (HPIV-1)',
-		                          'OtherData 2':'HEX Rounded RFU Range (HPIV-2)',
-		                          'OtherData 3':'IC Rounded RFU Range',
-		                          'OtherData 4':'RED647 Rounded RFU Range (HPIV-4)',
-		                          'OtherData 5':'ROX Rounded RFU Range (HPIV-3)',
-                          		 }
-		PCR_COLUMNS_KEEP = ['Specimen Barcode', 'Analyte', 'Run ID', 
-                            'Channel', 'Unrounded RFU Range', 'EstimatedBaseline',
-                        	'Unrounded Ct', 'LR_TSlope_NonNormalized','Cartridge Lot #',
-                         	'CapAndVialTrayID','Test order #', 'FCRBarcode', 'FERBarcode',
-                         	'ElutionBufferRFID','ReconstitutionBufferRFID', 'OilRFID',
-                         	'WellID','FusionTestOrder']
 
-		LIS_COLUMNS_KEEP = ['Specimen Barcode','Analyte','Run ID','Instrument Flags',
-		                      'FAM Rounded Ct', 'HEX Rounded Ct', 'ROX Rounded Ct', 'RED647 Rounded Ct', 
-		                      'IC Rounded Ct', 'POS/NEG/Invalid for HPIV-1', 'POS/NEG/Invalid for HPIV-2',
-		                      'POS/NEG/Invalid for HPIV-3', 'POS/NEG/Invalid for HPIV-4',
-		                      'Valid/Invalid for IC', 'Serial Number', 'Sample Type', 'Sample Name',
-		                      'Test order #', 'FAM Rounded RFU Range (HPIV-1)', 'HEX Rounded RFU Range (HPIV-2)',
-		                      'IC Rounded RFU Range', 'RED647 Rounded RFU Range (HPIV-4)', 
-		                      'ROX Rounded RFU Range (HPIV-3)'
-		                    ]
-
-		if CHANGE_PCR_COLUMN_NAMES:
-			self.pcr_file.rename(columns=CHANGE_PCR_COLUMN_DICT, inplace=True)
-		if CHANGE_LIS_COLUMN_NAMES:
-			self.lis_file.rename(columns=CHANGE_LIS_COLUMN_DICT, inplace=True)
 
 		# -----------> STARTING HERE IS PARAFLU SPECIFIC
 
@@ -297,36 +318,6 @@ class FusionAnalysis():
 
 		return save_as
 
-	def trimmer(self, number, trim_front=0, trim_back=0):
-
-		"""
-		Trimmer takes in an ID number, (obj) representation
-		and parses out the selected segment depending on the
-		parameters.
-
-		Args:
-		    number - the number to parse (obj)
-		    trim_front - how many characters to remove from the beginning of number (int)
-		    trim_back - how many characters to remove starting from end to beginning of number (int)
-		Returns:
-		     the result of the parsed number string (str)
-		"""
-		# Convert to an actual object representation
-		object_to_string = str(number)
-
-		if trim_front > 0 and trim_back > 0:
-		    # Convert to trim backwards
-		    trim_back *= -1
-		    after_trim_beginning = object_to_string[trim_front:]
-		    after_trim_ending = after_trim_beginning[:trim_back]
-		    return after_trim_ending
-		elif trim_front > 0:
-		    return object_to_string[trim_front:]
-		elif trim_back > 0:
-		    trim_back *= -1
-		    return object_to_string[:trim_back]
-
-		return object_to_string
 
 	def pq_analysis(self, combined_file, save_to, file_id):
 
