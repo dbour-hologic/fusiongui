@@ -17,14 +17,16 @@ class FusionAnalysis():
 
 	Features:
 		1) Combine PCR & LIS files
-		2) Statistical Analysis (future update)
-		3) PQ (Performance Qualification) (future update)
+		2) Statistical Analysis 
+		3) PQ (Performance Qualification) 
 
 	"""
 
-	def __init__(self, pcr_path, lis_path, assay_type):
+	def __init__(self, pcr_path, lis_path, assay_type, *args, **kwargs):
 
-		self.assay_type = assay_type
+		# Holds the columns to rename
+		self.pcr_columns_rename = {}
+		self.lis_columns_rename = {}
 
 		if (assay_type == 'P 1/2/3/4'):
 
@@ -45,15 +47,58 @@ class FusionAnalysis():
 										dtype={'Test order #': object}
 										)
 
-	def check_assay_types(self):
+		self.__set_variables(assay_type)
+		self.__change_column_names(assay_type, self.lis_file, self.lis_columns_rename)
+		self.__change_column_names(assay_type, self.pcr_file, self.pcr_columns_rename)
 
-		""" Checks if the assay types designated
-		on the file is the same as the one that is 
-		specified """
+	def __set_variables(self, assay_type):
+		""" (PRIVATE) Method is currently used as a substitution for
+		a JSON file to set various variable settings for the different assay
+		types. 
 
-		if (self.pcr_file['Analyte'][0] != self.assay_type):
-			return False
-		return True
+		Args:
+			assay_type - assay type to run <flu, paraflu, adeno, etc> (str)
+		"""
+		if assay_type == "P 1/2/3/4":
+			self.pcr_columns_rename =  {'RFU Range':'Unrounded RFU Range','LR_Ct_NonNormalized':'Unrounded Ct'}
+			self.lis_columns_rename =  {'Interpretation 1':'FAM Rounded Ct',
+							'Interpretation 2':'HEX Rounded Ct',
+							'Interpretation 3':'ROX Rounded Ct',
+							'Interpretation 4':'RED647 Rounded Ct',
+							'Interpretation 5':'IC Rounded Ct',
+							'Interpretation 6':'POS/NEG/Invalid for HPIV-1',
+							'Interpretation 7':'POS/NEG/Invalid for HPIV-2',
+							'Interpretation 8':'POS/NEG/Invalid for HPIV-3',
+							'Interpretation 9':'POS/NEG/Invalid for HPIV-4',
+							'Interpretation 10':'Valid/Invalid for IC',
+							'OtherData 1':'FAM Rounded RFU Range (HPIV-1)',
+							'OtherData 2':'HEX Rounded RFU Range (HPIV-2)',
+							'OtherData 3':'IC Rounded RFU Range',
+							'OtherData 4':'RED647 Rounded RFU Range (HPIV-4)',
+							'OtherData 5':'ROX Rounded RFU Range (HPIV-3)'}			
+
+
+	def __change_column_names(self, assay_type, dframe, name_map):
+		""" (PRIVATE) Change column name is an internal method used
+		for manipulating the PCR FILE column names or the LIS FILE 
+		column names. Ideally all of the the settings for specific assays will
+		be loaded through JSON, but are hard coded for the time being
+
+		Assay Types:
+		(1) Paraflu =  ' P 1/2/3/4'
+		(2) Flu = (future)
+		(3) Adeno = (future)
+
+		Args:
+			assay_type - assay type to run <flu, paraflu, adeno, etc> (str)
+			dframe - the dataframe to manipulate <LIS or PCR> (obj)
+			name_map - mapping of column and their name changes (dict)
+		Returns:
+			None
+
+		"""
+
+		dframe.rename(columns=name_map, inplace=True)
 
 	def combine_files(self, assay_profile, save_to):
 

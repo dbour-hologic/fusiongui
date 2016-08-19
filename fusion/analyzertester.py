@@ -15,10 +15,17 @@ class FileLoadsCorrectly(unittest.TestCase):
         lis_file_read = os.path.join(lis_files, lis_list[0])
         pcr_file_read = os.path.join(pcr_files, pcr_list[0])
         self.dataframe = FusionAnalysis(pcr_file_read, lis_file_read, "P 1/2/3/4")
-        
+
     def test_file_available(self):
         self.assertEqual(self.dataframe.pcr_file['Specimen Barcode'][0], '1011113418731122501243', "PCR File did not load properly")
         self.assertEqual(self.dataframe.lis_file['Specimen Barcode'][0], '1011113418731122501243', "LIS File did not load properly")
+
+    def test_column_name_changes(self):
+        self.assertRaises(KeyError, lambda: self.dataframe.pcr_file['RFU Range'])
+        self.assertRaises(KeyError, lambda: self.dataframe.lis_file['Interpretation 2'])
+        self.assertTrue('Unrounded RFU Range' in self.dataframe.pcr_file)
+        self.assertTrue('IC Rounded Ct' in self.dataframe.lis_file)
+
         
 if __name__ == '__main__':
     unittest.main()
