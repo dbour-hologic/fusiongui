@@ -73,8 +73,8 @@ class FusionCombinerTest(unittest.TestCase):
 
     def test_has_pairs(self):
 
-        print(self.combined.all_items)
         self.assertTrue(len(self.combined.all_items['paired']) > 0)
+        self.assertTrue(len(self.combined.all_items['no_pairs']) > 0)
 
 if __name__ == '__main__':
     unittest.main()

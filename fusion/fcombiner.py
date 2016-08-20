@@ -20,7 +20,7 @@ class FusionCombiner():
 
 	def __match_files(self):
 		""" Match files will pair up the LIS & PCR files. Unpaired
-		files will be moved separated out from the pack. 
+		files will be separated out from the pack. 
 
 		Args:
 			None
@@ -28,63 +28,63 @@ class FusionCombiner():
 			match_results - a dictionary containing  (dict)
 			(1) no_pairs : <list of files>
 			(2) paired: <list of {mapped} files>
+			(3) random: <random list of files that don't match PCR or LIS>
 		"""
 
+		# Categories to return
 		no_pairs = []
 		paired = {}
+		random = []
 
-		# LOGICAL ORDERING IS INCORRECT IN THIS
-		# HAVE TO LOOP THROUGH ONE FIRST TO 
-		# ESTBALISH THE DICT, THEN CHECK WITH OTHER
+		# Temporary list to separate out each type of file
+		pcr_file_list = []
+		lis_file_list = []
+		random_file_list = []
 
-		# for files in self.file_list:
+		for files in self.file_list:
+			if files.find("@DI") > -1:
+				pcr_file_list.append(files)
+			elif files.find("@Pt2") > -1:
+				lis_file_list.append(files)
+			else:
+				random_file_list.append()
 
-		# 	if files.find("@DI") > -1:
-		# 		get_only_pcr_fname = files[files.find("@DI"):]
-		# 		partition_pcr_file = get_only_pcr_fname.split("-")
-		# 		pcr_unique_id = partition_pcr_file[0].replace("@DI","") \
-		# 		+ partition_pcr_file[3] + "_" \
-		# 		+ partition_pcr_file[4] + "_" \
-		# 		+ partition_pcr_file[5].replace(".csv","")
+		for pcr_file in pcr_file_list:
+			get_only_pcr_fname = pcr_file[pcr_file.find("@DI"):]
+			partition_pcr_file = get_only_pcr_fname.split("-")
+			pcr_unique_id = partition_pcr_file[0].replace("@DI","") \
+			+ partition_pcr_file[3] + "_" \
+			+ partition_pcr_file[4] + "_" \
+			+ partition_pcr_file[5].replace(".csv","")
 
-		# 		paired[pcr_unique_id] = [files]
+			paired[pcr_unique_id] = [pcr_file]
 
-		# 	elif files.find("@Pt2") > -1:
-		# 		get_only_lis_fname = files[files.find("@Pt2"):]
-		# 		partition_lis_file = get_only_lis_fname.split("-")
-		# 		lis_unique_id = partition_lis_file[0].replace("@Pt2","") \
-		# 		+ partition_lis_file[3] + "_" \
-		# 		+ partition_lis_file[4] + "_" \
-		# 		+ partition_lis_file[5].replace(".lis","")
+		for lis_file in lis_file_list:
+			get_only_lis_fname = lis_file[lis_file.find("@Pt2"):]
+			partition_lis_file = get_only_lis_fname.split("-")
+			lis_unique_id = partition_lis_file[0].replace("@Pt2","") \
+			+ partition_lis_file[3] + "_" \
+			+ partition_lis_file[4] + "_" \
+			+ partition_lis_file[5].replace(".lis","")
 
-		# 		# paired[lis_unique_id]
-		# 		print(lis_unique_id)
-		# 		print("PP", paired)
+			has_pair = paired.get(lis_unique_id, None)
+			if has_pair:
+				paired[lis_unique_id].append(lis_file)
+			else:
+				no_pairs.append(lis_file)
 
-		# 		has_pair = paired.get(lis_unique_id, None)
-		# 		if has_pair:
-		# 			print("Hola")
-		# 			paired[lis_unique_id].append(files)
-		# 		else:
-		# 			no_pairs.append(files)
-		# 	else:
-		# 		no_pairs.append(files)
+		#PCR Keys to remove that have no pair
+		pcr_keys_to_remove = []
 
+		for uniqueID, pairs in paired.items():
+			if (len(pairs) < 2):
+				pcr_keys_to_remove.append(uniqueID)
+				no_pairs.append(pairs)
 
+		for pcr_keys in pcr_keys_to_remove:
+			del paired[pcr_keys]
 
-
-		# PCR Keys to remove that have no pair
-		# pcr_keys_to_remove = []
-
-		# for uniqueID, pairs in paired.items():
-		# 	if (len(pairs) < 2):
-		# 		pcr_keys_to_remove.append(uniqueID)
-		# 		no_pairs.append(pairs)
-
-		# for pcr_keys in pcr_keys_to_remove:
-		# 	del paired[pcr_keys]
-
-		# final_result = {"paired":paired, "no_pairs":no_pairs}
+		final_result = {"paired":paired, "no_pairs":no_pairs}
 
 		return final_result
 
