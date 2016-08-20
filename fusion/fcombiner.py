@@ -41,6 +41,7 @@ class FusionCombiner():
 		lis_file_list = []
 		random_file_list = []
 
+		# ____ This section categorizes the files into PCR, LIS, or Unknown
 		for files in self.file_list:
 			if files.find("@DI") > -1:
 				pcr_file_list.append(files)
@@ -49,6 +50,7 @@ class FusionCombiner():
 			else:
 				random_file_list.append()
 
+		# ____ This section does the mapping to find pairs
 		for pcr_file in pcr_file_list:
 			get_only_pcr_fname = pcr_file[pcr_file.find("@DI"):]
 			partition_pcr_file = get_only_pcr_fname.split("-")
@@ -73,7 +75,7 @@ class FusionCombiner():
 			else:
 				no_pairs.append(lis_file)
 
-		#PCR Keys to remove that have no pair
+		# ____ PCR Keys to remove that have no pair
 		pcr_keys_to_remove = []
 
 		for uniqueID, pairs in paired.items():
@@ -84,7 +86,7 @@ class FusionCombiner():
 		for pcr_keys in pcr_keys_to_remove:
 			del paired[pcr_keys]
 
-		final_result = {"paired":paired, "no_pairs":no_pairs}
+		final_result = {"paired":paired, "no_pairs":no_pairs, "random":random}
 
 		return final_result
 
