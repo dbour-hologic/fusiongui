@@ -52,6 +52,25 @@ class FusionAnalysis():
 		self.__change_column_names(assay_type, self.pcr_file, self.pcr_columns_rename)
 		self.__trim_column_values(assay_type, self.pcr_file, self.trim_map)
 
+		self.valid_data = self.__is_valid_dataset(assay_type)
+
+	def __is_valid_dataset(self, assay_type):
+		""" (PRIVATE) Checks if the pair files are of a matching 
+		assay type or empty.
+
+		Args:
+			assay_type - assay_type of data (str)
+		Returns:
+			true if pass, false if doesn't pass (bool)
+		"""
+
+		try:
+			if self.lis_file['Analyte'][0] == assay_type and self.pcr_file['Analyte'][0] == assay_type:
+				return True
+		except KeyError:
+			return False
+		return False
+
 	def __set_variables(self, assay_type):
 		""" (PRIVATE) Method is currently used as a substitution for
 		a JSON file to set various variable settings for the different assay
