@@ -238,7 +238,7 @@ class FusionAnalysis():
 				return pcr_and_lis[name_space]
 			return pcr_and_lis
 
-	def save_combed(self, df_combined, save_to):
+	def save_combined(self, df_combined, save_to):
 		"""
 		Saves dataframe as an Excel file. This is done on purpose
 		to prevent the long string of numbers from being automatically
@@ -250,7 +250,7 @@ class FusionAnalysis():
 		Returns:
 			None
 		Output:
-			Combined LIS & PCR file in *.csv format
+			Combined LIS & PCR file in *.xlsx format
 		"""
 
 		df_combined.to_excel(save_to)
@@ -649,29 +649,6 @@ class FusionAnalysis():
 			failed_results[channel_type] = pq_group[['Specimen Barcode','Run ID','Test order #']].values.tolist()
 
 		return failed_results
-
-class FusionCombiner(FusionAnalysis):
-
-	def __init__(self,  reference_dataframe, *args, **kwargs):
-
-		self.list_of_dataframes = [df for df in args]
-		self.list_of_dataframes.append(reference_dataframe)
-		self.combination = pd.concat(self.list_of_dataframes)
-
-	def printout(self):
-		pd.set_option('display.max_rows', None)
-		pd.set_option('display.max_columns', None)
-		pd.set_option('display.width', 1000)
-		pd.set_option('display.height', 1000)
-		pd.set_option('display.expand_frame_repr', False)
-		print(self.combination)
-		# self.combination.to_excel(os.path.join(os.getcwd(),'sampletest_combineds.xlsx'))
-
-	def aggr(self):
-		g = self.combination[self.combination['Specimen Barcode'].str.contains('Panel', case=False)]
-		h = g[~g['FAM Rounded Ct'].str.contains('Invalid', case=False)]
-		ok = h['FAM Rounded Ct'].astype(float)
-		print(ok.mean())
 
 
 if __name__ == '__main__':

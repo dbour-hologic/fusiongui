@@ -29,6 +29,21 @@ class FusionCombiner():
 		# Contains the MEGA MERGED FILE
 		self.mega_combination = pd.concat(self.all_combined_items['valid_fusion'])
 
+	def write_combined_multiple(self, save_to):
+		""" Saves the mega merged dataframes as an Excel file. This is done on purpose
+		to prevent the long string of numbers from being automatically converted
+		in Excel when opening it as a .csv/.tsv.
+
+		Args:
+			save_to - path to save combined file
+		Returns:
+			None
+		Output:
+			mega merged file in *.xlsx format
+		"""
+		
+		self.mega_combination.to_excel(save_to)
+
 	def __generate_file_combiner_obj(self, assay_type):
 		""" (PRIVATE) Creates all valid objects by checking if the
 		data <assay_type> is the proper assay type. 
