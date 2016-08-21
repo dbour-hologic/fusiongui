@@ -3,6 +3,7 @@ big fat combined file for FUSION data.
 """
 
 from .fanalyzer import FusionAnalysis
+import pandas as pd
 
 class FusionCombiner():
 
@@ -15,12 +16,62 @@ class FusionCombiner():
 			file_list - list of  full length file paths (list)
 			assay_type - assay type to look out for (str)
 		"""
+
+		# Contains all of the files to combine
 		self.file_list = file_list
+
+		# Contains all of the matched files, unpaired files, and unknown files
 		self.all_items = self.__match_files()
 
+		# Contains all of the individual valid combined files
+		self.all_combined_items = self.__generate_file_combiner_obj("P 1/2/3/4")
+
+		# Contains the MEGA MERGED FILE
+		self.mega_combination = pd.concat(self.all_combined_items['valid_fusion'])
+
+	def __generate_file_combiner_obj(self, assay_type):
+		""" (PRIVATE) Creates all valid objects by checking if the
+		data <assay_type> is the proper assay type. 
+
+		i.e. If looking for Paraflu,
+		LIS file must be analyte "P 1/2/3/4"
+		PCR file must be analyte "P 1/2/3/4"
+
+		Args:
+			assay_type - assay type to look out for (str)
+		Returns:
+			combined_list - a mapping of invalid and valid fusion data; based on
+			assay type specified. (dict)
+		"""
+
+		combined_list = {"invalid_fusion":[], "valid_fusion":[]}
+
+		for unique_id, list_of_pairs in self.all_items.get("paired").items():
+
+			pcr_file = ""
+			lis_file = ""
+
+			for file in list_of_pairs:
+
+				if file.find("@DI") > -1:
+					pcr_file = file
+			
+				if file.find("@Pt2") > -1:
+					lis_file = file
+
+			fusion_combined = FusionAnalysis(pcr_file, lis_file, "P 1/2/3/4")
+
+			if fusion_combined.valid_data:
+				combined_list['valid_fusion'].append(fusion_combined.combine_files("P 1/2/3/4"))
+			else:
+				combined_list['invalid_fusion'].append(fusion_combined)
+
+		return combined_list
+
 	def __match_files(self):
-		""" Match files will pair up the LIS & PCR files. Unpaired
-		files will be separated out from the pack. 
+		""" (PRIVATE) Match files will pair up the LIS & PCR files. Unpaired
+		files will be separated out from the pack. Matches are dependent
+		on how the files are named; does not check the content.
 
 		Args:
 			None
@@ -89,6 +140,8 @@ class FusionCombiner():
 		final_result = {"paired":paired, "no_pairs":no_pairs, "random":random}
 
 		return final_result
+
+
 
 	def get_logs(self):
 		pass

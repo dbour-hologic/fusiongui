@@ -72,9 +72,11 @@ class FusionCombinerTest(unittest.TestCase):
         self.combined = FusionCombiner(giant_list, "P 1/2/3/4")
 
     def test_has_pairs(self):
-
         self.assertTrue(len(self.combined.all_items['paired']) > 0)
         self.assertTrue(len(self.combined.all_items['no_pairs']) > 0)
+
+    def test_has_valid_fusion_data(self):
+        self.assertTrue(len(self.combined.all_combined_items['valid_fusion']) > 0)
 
 if __name__ == '__main__':
     unittest.main()
