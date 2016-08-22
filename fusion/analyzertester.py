@@ -2,6 +2,7 @@ import unittest
 import pandas as pd
 from .fanalyzer import FusionAnalysis
 from .fcombiner import FusionCombiner
+from .fpqanalysis import FusionPQ
 
 class FileCombinerTest(unittest.TestCase):
     
@@ -70,6 +71,7 @@ class FusionCombinerTest(unittest.TestCase):
             giant_list.append(os.path.join(pcr_files,y))
 
         self.combined = FusionCombiner(giant_list, "P 1/2/3/4")
+        self.mega = self.combined.mega_combination
 
     def test_has_pairs(self):
         self.assertTrue(len(self.combined.all_items['paired']) > 0)
@@ -77,6 +79,22 @@ class FusionCombinerTest(unittest.TestCase):
 
     def test_has_valid_fusion_data(self):
         self.assertTrue(len(self.combined.all_combined_items['valid_fusion']) > 0)
+
+    def test_pq_set_labels(self):
+
+        pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
+
+        POS_CTRL = pq_run.settings['pos_ctrl']
+        NEG_CTRL = pq_run.settings['neg_ctrl']
+        POS_LBL = pq_run.settings['pos_label']
+        NEG_LBL = pq_run.settings['neg_label']
+
+        pq_run.set_labels(POS_LBL, NEG_LBL, POS_CTRL, NEG_CTRL)
+
+        self.assertTrue(pq_run.dframe['SAMPLE Category'][0] == 'NEG')
+        self.assertTrue(pq_run.dframe['SAMPLE Category'][1] == 'POS')
+        self.assertTrue(pq_run.dframe['SAMPLE Category'][2] == 'POS')
+
 
 if __name__ == '__main__':
     unittest.main()
