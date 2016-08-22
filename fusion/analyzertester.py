@@ -132,6 +132,40 @@ class FusionCombinerTest(unittest.TestCase):
         self.assertTrue(row_select['TRUTHS table for POS/NEG/Invalid for HPIV-3'][0] == "") 
         self.assertTrue(row_select['TRUTHS table for POS/NEG/Invalid for HPIV-4'][0] == "") 
 
+    def test_pq_threshold(self):
+
+        pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
+
+        POS_CTRL = pq_run.settings['pos_ctrl']
+        NEG_CTRL = pq_run.settings['neg_ctrl']
+        POS_LBL = pq_run.settings['pos_label']
+        NEG_LBL = pq_run.settings['neg_label']
+
+        pq_run.set_labels(POS_LBL, NEG_LBL, POS_CTRL, NEG_CTRL)
+        pq_run.check_pq_thresholds()
+
+        row_select = pq_run.dframe[pq_run.dframe['Specimen Barcode'].str.contains('1011115644231122501996')]
+      
+        self.assertTrue(row_select['PQ Threshold for FAM Rounded RFU Range (HPIV-1)'][0] == "PASS")   
+
+    def test_overall_pq(self):
+
+        pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
+
+        POS_CTRL = pq_run.settings['pos_ctrl']
+        NEG_CTRL = pq_run.settings['neg_ctrl']
+        POS_LBL = pq_run.settings['pos_label']
+        NEG_LBL = pq_run.settings['neg_label']
+
+        pq_run.set_labels(POS_LBL, NEG_LBL, POS_CTRL, NEG_CTRL)
+        pq_run.check_false_calls()  
+        pq_run.check_validity()
+        pq_run.check_pq_thresholds()
+        pq_run.overall_validity()
+
+        row_select = pq_run.dframe[pq_run.dframe['Specimen Barcode'].str.contains('1011115644231122501996')]
+      
+        self.assertTrue(row_select['PQ RESULTS'][0] == "PASS") 
 
 if __name__ == '__main__':
     unittest.main()
