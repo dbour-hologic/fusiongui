@@ -177,7 +177,17 @@ class FusionCombinerTest(unittest.TestCase):
         # NEG_LBL = pq_run.settings['neg_label']        
 
         # pqdframe = pq_run.run_pq()
+       
         # mean_stats = pq_run.get_stats_of_valids('Run ID', pqdframe)
+        # pq_stats = pq_run.get_pq_results('Run ID', pqdframe)
+
+
+        # for x, y in mean_stats.items():
+        #     print("HEAD: ", x)
+        #     for a, b in y.items():
+        #         print("CHAN: ", a)
+        #         for l, m in b.items():
+        #             print(l, m)
         pass
 
 

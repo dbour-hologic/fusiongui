@@ -5,6 +5,8 @@ checks on the data to see if it meets specifications set by
 a guideline
 """
 
+import os
+
 class FusionPQ():
 
     def __init__(self, dframe, assay_type, pos_label, neg_label, *args, **kwargs):
@@ -48,6 +50,7 @@ class FusionPQ():
                     }
                 }
 
+
     def run_pq(self):
 
         POS_CTRL = self.settings['pos_ctrl']
@@ -61,6 +64,7 @@ class FusionPQ():
         self.check_pq_thresholds()
         self.overall_validity()
 
+        # self.dframe.to_excel(os.path.join(os.getcwd(), "tester.xlsx"))
         return self.dframe
 
     def set_labels(self, pos_label, neg_label, pos_ctrl, neg_ctrl):
@@ -346,7 +350,87 @@ class FusionPQ():
     def get_pq_results(self, group_stats_by, pq_dframe):
         """ Gets the number of samples that passed PQ and the number that failed """
 
-        
+        all_groups = {}
+
+        pq_categories = {
+            'FAM': ['PQ Threshold for FAM Rounded RFU Range (HPIV-1)', 'TRUTHS table for POS/NEG/Invalid for HPIV-1', 'Validity for POS/NEG/Invalid for HPIV-1'],
+            'HEX': ['PQ Threshold for HEX Rounded RFU Range (HPIV-2)', 'TRUTHS table for POS/NEG/Invalid for HPIV-2', 'Validity for POS/NEG/Invalid for HPIV-2'],
+            'ROX': ['PQ Threshold for ROX Rounded RFU Range (HPIV-3)', 'TRUTHS table for POS/NEG/Invalid for HPIV-3', 'Validity for POS/NEG/Invalid for HPIV-3'],
+            'RED647': ['PQ Threshold for RED647 Rounded RFU Range (HPIV-4)', 'TRUTHS table for POS/NEG/Invalid for HPIV-4', 'Validity for POS/NEG/Invalid for HPIV-4']
+        }
+
+        for group_cat, series in pq_dframe.groupby([group_stats_by]):
+
+            pq_stats = {
+                'POS': {
+                    'FAM': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_NEG': 0},
+                    'HEX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_NEG': 0},
+                    'ROX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0,'FALSE_NEG': 0},
+                    'RED647': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0,'FALSE_NEG': 0},
+                },
+                'NEG':{
+                    'FAM': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
+                    'HEX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
+                    'ROX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
+                    'RED647': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
+                }
+            }
+
+            for channel, columns in pq_categories.items():
+
+                data_row_pos = series[series[columns[0]].str.contains('PASS', case=False) & \
+                                                              series['SAMPLE Category'].str.contains('POS', case=False) & \
+                                                              series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                              series[columns[2]].str.contains(r"\bVALID\b")][columns[0]].count()
+
+                data_row_pos_fail = series[series[columns[0]].str.contains('FAIL', case=False) & \
+                                                                      series['SAMPLE Category'].str.contains('POS', case=False) & \
+                                                                      series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                                      series[columns[2]].str.contains(r"\bVALID\b")][columns[0]].count()                                              
+
+                data_row_pos_false = series[series[columns[1]].str.contains('False', case=False) & \
+                                                                          series['SAMPLE Category'].str.contains('POS', case=False) & \
+                                                                          series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                                          series[columns[2]].str.contains(r"\bVALID\b")][columns[1]].count()
+
+                data_row_neg = series[series[columns[0]].str.contains('PASS', case=False) & \
+                                                              series['SAMPLE Category'].str.contains('NEG', case=False) & \
+                                                              series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                              series[columns[2]].str.contains(r"\bVALID\b")][columns[0]].count()
+
+                data_row_neg_fail = series[series[columns[0]].str.contains('FAIL', case=False) & \
+                                                                      series['SAMPLE Category'].str.contains('NEG', case=False) & \
+                                                                      series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                                      series[columns[2]].str.contains(r"\bVALID\b")][columns[0]].count()                                                              
+
+                data_row_neg_false = series[series[columns[1]].str.contains('False', case=False) & \
+                                                                          series['SAMPLE Category'].str.contains('NEG', case=False) & \
+                                                                          series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                                          series[columns[2]].str.contains(r"\bVALID\b")][columns[1]].count()
+
+                data_row_invalid_neg = series[series['SAMPLE Category'].str.contains('NEG', case=False) & \
+                                                                             series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                                             series[columns[2]].str.contains(r"\bINVALID\b")][columns[0]].count()     
+
+                data_row_invalid_pos = series[series['SAMPLE Category'].str.contains('POS', case=False) & \
+                                                                             series['Sample Type'].str.contains('Specimen', case=False) & \
+                                                                             series[columns[2]].str.contains(r"\bINVALID\b")][columns[0]].count()
+
+                pq_stats['POS'][channel]['COUNT'] = data_row_pos + data_row_invalid_pos + data_row_pos_fail
+                pq_stats['POS'][channel]['PASS'] = data_row_pos
+                pq_stats['POS'][channel]['FAIL'] = data_row_pos_fail
+                pq_stats['POS'][channel]['INVALIDS'] = data_row_invalid_pos
+                pq_stats['POS'][channel]['FALSE_NEG'] = data_row_pos_false
+
+                pq_stats['NEG'][channel]['COUNT'] = data_row_neg + data_row_invalid_neg + data_row_neg_fail
+                pq_stats['NEG'][channel]['PASS'] = data_row_neg
+                pq_stats['NEG'][channel]['FAIL'] = data_row_neg_fail
+                pq_stats['NEG'][channel]['INVALIDS'] = data_row_invalid_neg
+                pq_stats['NEG'][channel]['FALSE_POS'] = data_row_neg_false
+
+            all_groups[group_cat] = pq_stats
+
+        return all_groups
 
     def get_stats_of_valids(self,  group_stats_by, pq_dframe):
 
@@ -357,6 +441,8 @@ class FusionPQ():
         * ignores positive/negative controls in calculations
         """
 
+        all_group_stats = {}
+
         categories = {
             'FAM_MEAN':['Validity for POS/NEG/Invalid for HPIV-1', 'FAM-Unrounded RFU Range'],
             'HEX_MEAN':['Validity for POS/NEG/Invalid for HPIV-2', 'HEX-Unrounded RFU Range'],
@@ -365,31 +451,31 @@ class FusionPQ():
             'IC_MEAN':['Valid/Invalid for IC', 'IC-Unrounded RFU Range']
         }
 
-        mean_results = {
-            'POS' :{ 
-                'FAM_MEAN': {"MEAN":0, "COUNT":0, "STD":0},
-                'HEX_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
-                'ROX_MEAN':{"MEAN":0, "COUNT":0, "STD": 0},
-                'RED647_MEAN':{"MEAN":0, "COUNT":0, "STD":0}
-            },
-            'NEG' :{
-                'FAM_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
-                'HEX_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
-                'ROX_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
-                'RED647_MEAN':{"MEAN":0, "COUNT":0, "STD":0}
-            },
-            'IC':{
-                'IC_MEAN':{"MEAN":0, "COUNT":0, "STD":0}
-            }
-        }
-
         for group_cat, series in pq_dframe.groupby([group_stats_by]):
+
+            mean_results = {
+                'POS' :{ 
+                    'FAM_MEAN': {"MEAN":0, "VALID_COUNT":0, "STD":0},
+                    'HEX_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD":0},
+                    'ROX_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD": 0},
+                    'RED647_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD":0}
+                },
+                'NEG' :{
+                    'FAM_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD":0},
+                    'HEX_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD":0},
+                    'ROX_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD":0},
+                    'RED647_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD":0}
+                },
+                'IC':{
+                    'IC_MEAN':{"MEAN":0, "VALID_COUNT":0, "STD":0}
+                }
+            }
 
             for channel, columns in categories.items():
 
                 if channel == 'IC_MEAN':
 
-                    data_row_ic = series[series[columns[0]].str.contains('valid', case=False)][columns[1]]
+                    data_row_ic = series[series[columns[0]].str.contains(r'\bVALID\b', case=False)][columns[1]]
 
                     ic_mean = data_row_ic.mean() 
                     ic_std =data_row_ic.std() 
@@ -397,19 +483,20 @@ class FusionPQ():
 
                     mean_results['IC'][channel]['MEAN'] = ic_mean
                     mean_results['IC'][channel]['STD'] = ic_std
-                    mean_results['IC'][channel]['COUNT'] = ic_count
+                    mean_results['IC'][channel]['VALID_COUNT'] = ic_count
 
                 else:
 
-                    data_row = series[series[columns[0]].str.contains('valid', case=False) & \
+                    data_row = series[series[columns[0]].str.contains(r'\bVALID\b', case=False) & \
                                                         series['SAMPLE Category'].str.contains('POS', case=False) & \
                                                         series['Sample Type'].str.contains('Specimen', case=False)][columns[1]]
+
 
                     data_row_pos_mean = data_row.mean()
                     data_row_pos_count = data_row.count()
                     data_row_pos_std = data_row.std()
 
-                    data_row_neg = series[series[columns[0]].str.contains('valid', case=False) &\
+                    data_row_neg = series[series[columns[0]].str.contains(r'\bVALID\b', case=False) &\
                                                                   series['SAMPLE Category'].str.contains('NEG', case=False) &\
                                                                   series['Sample Type'].str.contains('Specimen', case=False)] [columns[1]]
 
@@ -418,10 +505,12 @@ class FusionPQ():
                     data_row_neg_std = data_row_neg.std()
 
                     mean_results['POS'][channel]['MEAN'] = data_row_pos_mean
-                    mean_results['POS'][channel]['COUNT'] = data_row_pos_count
+                    mean_results['POS'][channel]['VALID_COUNT'] = data_row_pos_count
                     mean_results['POS'][channel]['STD'] = data_row_pos_std
                     mean_results['NEG'][channel]['MEAN'] = data_row_neg_mean
-                    mean_results['NEG'][channel]['COUNT'] = data_row_neg_count
+                    mean_results['NEG'][channel]['VALID_COUNT'] = data_row_neg_count
                     mean_results['NEG'][channel]['STD'] = data_row_neg_std
 
-        return mean_results
+            all_group_stats[group_cat] = mean_results
+
+        return all_group_stats
