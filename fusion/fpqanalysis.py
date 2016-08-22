@@ -337,3 +337,15 @@ class FusionPQ():
                 return "FAIL"
             
         return "PASS"
+
+    def stats(self, groupby_settings='Run ID', *args, **kwargs):
+
+        overall_stats = {
+            
+        }
+
+        pq_dframe = self.run_pq
+
+        general_pq = pq_dframe.groupby(['%s', 'SAMPLE Category', 'PQ RESULTS'])
+        
+
