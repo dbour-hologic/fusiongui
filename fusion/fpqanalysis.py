@@ -56,6 +56,7 @@ class FusionPQ():
         NEG_LBL = self.settings['neg_label']
 
         self.set_labels(POS_LBL, NEG_LBL, POS_CTRL, NEG_CTRL)
+        self.check_false_calls()
         self.check_validity()
         self.check_pq_thresholds()
         self.overall_validity()
@@ -340,12 +341,87 @@ class FusionPQ():
 
     def stats(self, groupby_settings='Run ID', *args, **kwargs):
 
-        overall_stats = {
-            
-        }
-
         pq_dframe = self.run_pq
+        
+    def get_pq_results(self, group_stats_by, pq_dframe):
+        """ Gets the number of samples that passed PQ and the number that failed """
 
-        general_pq = pq_dframe.groupby(['%s', 'SAMPLE Category', 'PQ RESULTS'])
         
 
+    def get_stats_of_valids(self,  group_stats_by, pq_dframe):
+
+        """ Get the stats for 
+        (1) VALID (doesn't matter PQ)
+        (2) TYPE (pos or neg)
+
+        * ignores positive/negative controls in calculations
+        """
+
+        categories = {
+            'FAM_MEAN':['Validity for POS/NEG/Invalid for HPIV-1', 'FAM-Unrounded RFU Range'],
+            'HEX_MEAN':['Validity for POS/NEG/Invalid for HPIV-2', 'HEX-Unrounded RFU Range'],
+            'ROX_MEAN':['Validity for POS/NEG/Invalid for HPIV-3', 'ROX-Unrounded RFU Range'],
+            'RED647_MEAN':['Validity for POS/NEG/Invalid for HPIV-4', 'RED647-Unrounded RFU Range'],
+            'IC_MEAN':['Valid/Invalid for IC', 'IC-Unrounded RFU Range']
+        }
+
+        mean_results = {
+            'POS' :{ 
+                'FAM_MEAN': {"MEAN":0, "COUNT":0, "STD":0},
+                'HEX_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
+                'ROX_MEAN':{"MEAN":0, "COUNT":0, "STD": 0},
+                'RED647_MEAN':{"MEAN":0, "COUNT":0, "STD":0}
+            },
+            'NEG' :{
+                'FAM_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
+                'HEX_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
+                'ROX_MEAN':{"MEAN":0, "COUNT":0, "STD":0},
+                'RED647_MEAN':{"MEAN":0, "COUNT":0, "STD":0}
+            },
+            'IC':{
+                'IC_MEAN':{"MEAN":0, "COUNT":0, "STD":0}
+            }
+        }
+
+        for group_cat, series in pq_dframe.groupby([group_stats_by]):
+
+            for channel, columns in categories.items():
+
+                if channel == 'IC_MEAN':
+
+                    data_row_ic = series[series[columns[0]].str.contains('valid', case=False)][columns[1]]
+
+                    ic_mean = data_row_ic.mean() 
+                    ic_std =data_row_ic.std() 
+                    ic_count = data_row_ic.count()
+
+                    mean_results['IC'][channel]['MEAN'] = ic_mean
+                    mean_results['IC'][channel]['STD'] = ic_std
+                    mean_results['IC'][channel]['COUNT'] = ic_count
+
+                else:
+
+                    data_row = series[series[columns[0]].str.contains('valid', case=False) & \
+                                                        series['SAMPLE Category'].str.contains('POS', case=False) & \
+                                                        series['Sample Type'].str.contains('Specimen', case=False)][columns[1]]
+
+                    data_row_pos_mean = data_row.mean()
+                    data_row_pos_count = data_row.count()
+                    data_row_pos_std = data_row.std()
+
+                    data_row_neg = series[series[columns[0]].str.contains('valid', case=False) &\
+                                                                  series['SAMPLE Category'].str.contains('NEG', case=False) &\
+                                                                  series['Sample Type'].str.contains('Specimen', case=False)] [columns[1]]
+
+                    data_row_neg_mean = data_row_neg.mean()
+                    data_row_neg_count = data_row_neg.count()
+                    data_row_neg_std = data_row_neg.std()
+
+                    mean_results['POS'][channel]['MEAN'] = data_row_pos_mean
+                    mean_results['POS'][channel]['COUNT'] = data_row_pos_count
+                    mean_results['POS'][channel]['STD'] = data_row_pos_std
+                    mean_results['NEG'][channel]['MEAN'] = data_row_neg_mean
+                    mean_results['NEG'][channel]['COUNT'] = data_row_neg_count
+                    mean_results['NEG'][channel]['STD'] = data_row_neg_std
+
+        return mean_results

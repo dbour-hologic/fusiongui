@@ -167,5 +167,19 @@ class FusionCombinerTest(unittest.TestCase):
       
         self.assertTrue(row_select['PQ RESULTS'][0] == "PASS") 
 
+    def test_mean_stats(self):
+
+        # pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
+
+        # POS_CTRL = pq_run.settings['pos_ctrl']
+        # NEG_CTRL = pq_run.settings['neg_ctrl']
+        # POS_LBL = pq_run.settings['pos_label']
+        # NEG_LBL = pq_run.settings['neg_label']        
+
+        # pqdframe = pq_run.run_pq()
+        # mean_stats = pq_run.get_stats_of_valids('Run ID', pqdframe)
+        pass
+
+
 if __name__ == '__main__':
     unittest.main()
