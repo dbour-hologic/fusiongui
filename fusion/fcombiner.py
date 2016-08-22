@@ -41,7 +41,7 @@ class FusionCombiner():
 		Output:
 			mega merged file in *.xlsx format
 		"""
-		
+
 		self.mega_combination.to_excel(save_to)
 
 	def __generate_file_combiner_obj(self, assay_type):
@@ -114,7 +114,7 @@ class FusionCombiner():
 			elif files.find("@Pt2") > -1:
 				lis_file_list.append(files)
 			else:
-				random_file_list.append()
+				random_file_list.append(files)
 
 		# ____ This section does the mapping to find pairs
 		for pcr_file in pcr_file_list:

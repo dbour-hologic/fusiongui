@@ -95,6 +95,43 @@ class FusionCombinerTest(unittest.TestCase):
         self.assertTrue(pq_run.dframe['SAMPLE Category'][1] == 'POS')
         self.assertTrue(pq_run.dframe['SAMPLE Category'][2] == 'POS')
 
+    def test_pq_validity_checker(self):
+
+        pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
+
+        POS_CTRL = pq_run.settings['pos_ctrl']
+        NEG_CTRL = pq_run.settings['neg_ctrl']
+        POS_LBL = pq_run.settings['pos_label']
+        NEG_LBL = pq_run.settings['neg_label']
+
+        pq_run.set_labels(POS_LBL, NEG_LBL, POS_CTRL, NEG_CTRL)
+        pq_run.check_validity()
+
+        row_select = pq_run.dframe[pq_run.dframe['Specimen Barcode'].str.contains('1011115644231122501996') & pq_run.dframe['Validity for POS/NEG/Invalid for HPIV-1'].str.contains("valid", case=False)]
+      
+        self.assertTrue(row_select['Validity for POS/NEG/Invalid for HPIV-1'][0] == "VALID")
+        self.assertTrue(row_select['Validity for POS/NEG/Invalid for HPIV-2'][0] == "VALID")
+        self.assertTrue(row_select['Validity for POS/NEG/Invalid for HPIV-3'][0] == "VALID")
+
+    def test_false_data(self):
+
+        pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
+
+        POS_CTRL = pq_run.settings['pos_ctrl']
+        NEG_CTRL = pq_run.settings['neg_ctrl']
+        POS_LBL = pq_run.settings['pos_label']
+        NEG_LBL = pq_run.settings['neg_label']
+
+        pq_run.set_labels(POS_LBL, NEG_LBL, POS_CTRL, NEG_CTRL)   
+        pq_run.check_false_calls()  
+
+        row_select = pq_run.dframe[pq_run.dframe['Specimen Barcode'].str.contains('1011115644231122501996')]
+      
+        self.assertTrue(row_select['TRUTHS table for POS/NEG/Invalid for HPIV-1'][0] == "")
+        self.assertTrue(row_select['TRUTHS table for POS/NEG/Invalid for HPIV-2'][0] == "") 
+        self.assertTrue(row_select['TRUTHS table for POS/NEG/Invalid for HPIV-3'][0] == "") 
+        self.assertTrue(row_select['TRUTHS table for POS/NEG/Invalid for HPIV-4'][0] == "") 
+
 
 if __name__ == '__main__':
     unittest.main()
