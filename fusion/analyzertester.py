@@ -16,6 +16,7 @@ class FileCombinerTest(unittest.TestCase):
         pcr_list = [files for files in os.listdir(pcr_files)]
         lis_file_read = os.path.join(lis_files, lis_list[0])
         pcr_file_read = os.path.join(pcr_files, pcr_list[0])
+
         self.dataframe = FusionAnalysis(pcr_file_read, lis_file_read, "P 1/2/3/4")
 
     def test_valid_datatype(self):
@@ -47,6 +48,10 @@ class FileCombinerTest(unittest.TestCase):
         self.assertTrue('WellID' in combination)
         self.assertTrue('Specimen Barcode' in combination)
 
+    def test_instrument_mapper(self):
+         combination = self.dataframe.combine_files("P 1/2/3/4", mapping=self.dataframe.mapping_source)
+         self.assertEqual(combination['Serial Number'][0], "F39")
+
     def test_combination_file_filter(self):
         combination = self.dataframe.combine_files("P 1/2/3/4", name_space=['Specimen Barcode'])
         self.assertTrue('Specimen Barcode' in combination)
@@ -75,7 +80,7 @@ class FusionCombinerTest(unittest.TestCase):
 
     def test_has_pairs(self):
         self.assertTrue(len(self.combined.all_items['paired']) > 0)
-        self.assertTrue(len(self.combined.all_items['no_pairs']) > 0)
+        self.assertTrue(len(self.combined.all_items['no_pairs']) >= 0)
 
     def test_has_valid_fusion_data(self):
         self.assertTrue(len(self.combined.all_combined_items['valid_fusion']) > 0)
@@ -169,25 +174,25 @@ class FusionCombinerTest(unittest.TestCase):
 
     def test_mean_stats(self):
 
-        # pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
+        pq_run = FusionPQ(self.mega, "P 1/2/3/4", "PANEL", "NEGATIVE")
 
-        # POS_CTRL = pq_run.settings['pos_ctrl']
-        # NEG_CTRL = pq_run.settings['neg_ctrl']
-        # POS_LBL = pq_run.settings['pos_label']
-        # NEG_LBL = pq_run.settings['neg_label']        
+        POS_CTRL = pq_run.settings['pos_ctrl']
+        NEG_CTRL = pq_run.settings['neg_ctrl']
+        POS_LBL = pq_run.settings['pos_label']
+        NEG_LBL = pq_run.settings['neg_label']        
 
-        # pqdframe = pq_run.run_pq()
+        pqdframe = pq_run.run_pq()
        
-        # mean_stats = pq_run.get_stats_of_valids('Run ID', pqdframe)
-        # pq_stats = pq_run.get_pq_results('Run ID', pqdframe)
+        mean_stats = pq_run.get_stats_of_valids('Run ID', pqdframe)
+        pq_stats = pq_run.get_pq_results('Run ID', pqdframe)
 
 
-        # for x, y in mean_stats.items():
-        #     print("HEAD: ", x)
-        #     for a, b in y.items():
-        #         print("CHAN: ", a)
-        #         for l, m in b.items():
-        #             print(l, m)
+        for x, y in mean_stats.items():
+            print("HEAD: ", x)
+            for a, b in y.items():
+                print("CHAN: ", a)
+                for l, m in b.items():
+                    print(l, m)
         pass
 
 

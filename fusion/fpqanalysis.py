@@ -64,7 +64,7 @@ class FusionPQ():
         self.check_pq_thresholds()
         self.overall_validity()
 
-        # self.dframe.to_excel(os.path.join(os.getcwd(), "tester.xlsx"))
+        self.dframe.to_excel(os.path.join(os.getcwd(), "tester.xlsx"))
         return self.dframe
 
     def set_labels(self, pos_label, neg_label, pos_ctrl, neg_ctrl):

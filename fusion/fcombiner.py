@@ -7,7 +7,7 @@ import pandas as pd
 
 class FusionCombiner():
 
-	def __init__(self, file_list, assay_type, *args, **kwargs):
+	def __init__(self, file_list, assay_type, instrument_mapping=None, software_mapping=None, *args, **kwargs):
 		""" Constructor is used to hold the big fat list of files.
 		It will automatically handle matching pairs of PCR & LIS.
 		It will log files that did not match or does not have data.
@@ -44,7 +44,7 @@ class FusionCombiner():
 
 		self.mega_combination.to_excel(save_to)
 
-	def __generate_file_combiner_obj(self, assay_type):
+	def __generate_file_combiner_obj(self, assay_type, instrument_mapping=None, software_mapping=None):
 		""" (PRIVATE) Creates all valid objects by checking if the
 		data <assay_type> is the proper assay type. 
 
@@ -77,7 +77,7 @@ class FusionCombiner():
 			fusion_combined = FusionAnalysis(pcr_file, lis_file, "P 1/2/3/4")
 
 			if fusion_combined.valid_data:
-				combined_list['valid_fusion'].append(fusion_combined.combine_files("P 1/2/3/4"))
+				combined_list['valid_fusion'].append(fusion_combined.combine_files("P 1/2/3/4", instrument_mapping=fusion_combined.mapping_source, software_mapping=fusion_combined.software_source))
 			else:
 				combined_list['invalid_fusion'].append(fusion_combined)
 

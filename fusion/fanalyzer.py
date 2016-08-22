@@ -44,7 +44,9 @@ class FusionAnalysis():
 			self.lis_file = pd.read_csv(lis_path,
 										delimiter='\t',
 										encoding='utf-8-sig',
-										dtype={'Test order #': object}
+										dtype={'Test order #': object,
+											'Serial Number':object
+											}
 										)
 
 		self.__set_variables(assay_type)
@@ -53,6 +55,7 @@ class FusionAnalysis():
 		self.__trim_column_values(assay_type, self.pcr_file, self.trim_map)
 
 		self.valid_data = self.__is_valid_dataset(assay_type)
+
 
 	def __is_valid_dataset(self, assay_type):
 		""" (PRIVATE) Checks if the pair files are of a matching 
@@ -104,6 +107,23 @@ class FusionAnalysis():
 				"ElutionBufferRFID":(4,11),
 				"ReconstitutionBufferRFID":(4,11),
 				"OilRFID":(4,11)
+			}
+
+			self.mapping_source = {
+				"2090000330":"F39",
+				"2090000186":"F39",
+				"2090000323":"F41",
+				"2090000327":"F42",
+				"2090000775":"F45",
+				"2090000735":"F51",
+				"2090001197":"F62",
+				"2090000574":"F64"
+			}
+
+			self.software_source = {
+				"0.91.4":"GAP 6.0.6.15",
+				"0.93.4":"GAP 6.0.6.17",
+				"0.95.4":"GAP 6.9.6.17",
 			}
 
 	def __change_column_names(self, assay_type, dframe, name_map):
@@ -180,7 +200,7 @@ class FusionAnalysis():
 
 		return object_to_string
 
-	def combine_files(self, assay_type, *args, **kwargs):
+	def combine_files(self, assay_type, instrument_mapping=None, software_mapping=None, *args, **kwargs):
 
 		""" Combines the PCR & LIS Files 
 		Args:
@@ -234,9 +254,34 @@ class FusionAnalysis():
 			for new_col, old_col in self.consolidation_map.items():
 				pcr_and_lis.loc[:,new_col] = pcr_and_lis[old_col]
 
+
+			if instrument_mapping:
+				pcr_and_lis = self.__apply_instrument_mapping(instrument_mapping, pcr_and_lis)
+			if software_mapping:
+				pcr_and_lis = self.__apply_software_mapping(software_mapping, pcr_and_lis)
+
+
 			if name_space:
 				return pcr_and_lis[name_space]
 			return pcr_and_lis
+
+	def __apply_instrument_mapping(self, mapping, dframe):
+		""" Give a mapping for instruments """
+
+		try:
+			dframe['Serial Number'] = dframe['Serial Number'].apply(lambda element: mapping[element])
+		except KeyError:
+			print("No serial number mapping available.")
+		
+		return dframe
+
+	def __apply_software_mapping(self, mapping, dframe):
+		try:
+			dframe['Software Revision'] = dframe['Software Revision'].apply(lambda element: mapping[element])
+		except KeyError as e:
+			print("No software version matching!", e)
+
+		return dframe
 
 	def save_combined(self, df_combined, save_to):
 		"""
