@@ -173,75 +173,75 @@ class FusionGui(QtGui.QWidget):
 		
 
 
-	def match_files(self, list_of_LIS_files, list_of_PCR_files):
+	# def match_files(self, list_of_LIS_files, list_of_PCR_files):
 
-		""" Main purpose of the program is to match
-		the PCR file to its appropriate LIS file. The matching 
-		is done on the worklist-ID and date.
+	# 	""" Main purpose of the program is to match
+	# 	the PCR file to its appropriate LIS file. The matching 
+	# 	is done on the worklist-ID and date.
 
-		Args:
-			list_of_LIS_files - all of the LIS files in a list (list)
-			list_of_PCR_files - all of the PCR files in a list (list)
-		Returns:
-			the unique_id as a (key) and list of [lis_file, pcr_file], also
-			notfies of missing pcr or lis files. (dict)
-		"""
+	# 	Args:
+	# 		list_of_LIS_files - all of the LIS files in a list (list)
+	# 		list_of_PCR_files - all of the PCR files in a list (list)
+	# 	Returns:
+	# 		the unique_id as a (key) and list of [lis_file, pcr_file], also
+	# 		notfies of missing pcr or lis files. (dict)
+	# 	"""
 
-		# LIS FILES WITH NO PCR PAIR
-		missing_lis_files = []
-		# PCR FILES WITH NO LIS PAIR
-		missing_pcr_files = []
-		# MAIN INDEX
-		fusion_file_index = {}
+	# 	# LIS FILES WITH NO PCR PAIR
+	# 	missing_lis_files = []
+	# 	# PCR FILES WITH NO LIS PAIR
+	# 	missing_pcr_files = []
+	# 	# MAIN INDEX
+	# 	fusion_file_index = {}
 
-		for pcr_files in list_of_PCR_files:
+	# 	for pcr_files in list_of_PCR_files:
 			
 
-			get_only_pcr_filename = pcr_files[pcr_files.find("@DI"):]
-			partition_pcr_file = get_only_pcr_filename.split("-")
+	# 		get_only_pcr_filename = pcr_files[pcr_files.find("@DI"):]
+	# 		partition_pcr_file = get_only_pcr_filename.split("-")
 
-			unique_id = partition_pcr_file[0].replace("@DI",'') + "_" + \
-						partition_pcr_file[3] + "_" + \
-						partition_pcr_file[4] + "_" + \
-						partition_pcr_file[5].replace('.csv','')
+	# 		unique_id = partition_pcr_file[0].replace("@DI",'') + "_" + \
+	# 					partition_pcr_file[3] + "_" + \
+	# 					partition_pcr_file[4] + "_" + \
+	# 					partition_pcr_file[5].replace('.csv','')
 
-			fusion_file_index[unique_id] = [pcr_files]
+	# 		fusion_file_index[unique_id] = [pcr_files]
 
-		for lis_files in list_of_LIS_files:
+	# 	for lis_files in list_of_LIS_files:
 
-			get_only_lis_filename = lis_files[lis_files.find("@Pt2"):]
-			partition_lis_file = get_only_lis_filename.split("-")
+	# 		get_only_lis_filename = lis_files[lis_files.find("@Pt2"):]
+	# 		partition_lis_file = get_only_lis_filename.split("-")
 
-			lis_unique_id = partition_lis_file[0].replace('@Pt2','') + "_" + \
-							partition_lis_file[3] + "_" + \
-							partition_lis_file[4] + "_" + \
-							partition_lis_file[5].replace('.lis','')
+	# 		lis_unique_id = partition_lis_file[0].replace('@Pt2','') + "_" + \
+	# 						partition_lis_file[3] + "_" + \
+	# 						partition_lis_file[4] + "_" + \
+	# 						partition_lis_file[5].replace('.lis','')
 
-		# Checks if the LIS file is paired with an available PCR file
-			try:
-				fusion_file_index[lis_unique_id].append(lis_files)
-			except KeyError:
-				missing_lis_files.append(lis_files)
-				print("No matching PCR file found for %s" % lis_files)
+	# 	# Checks if the LIS file is paired with an available PCR file
+	# 		try:
+	# 			fusion_file_index[lis_unique_id].append(lis_files)
+	# 		except KeyError:
+	# 			missing_lis_files.append(lis_files)
+	# 			print("No matching PCR file found for %s" % lis_files)
 
-		# Remove PCR Keys
-		pcr_keys_to_remove = []
+	# 	# Remove PCR Keys
+	# 	pcr_keys_to_remove = []
 
-		# Checks if the PCR file is paired with a LIS file
-		for uniqueID, pairs in fusion_file_index.items():
-			if (len(pairs) < 2):
-				print("No matching LIS file found for %s" % pairs[0])
-				missing_pcr_files.append(pairs[0])
-				# Remove the unique_id from analysis
-				pcr_keys_to_remove.append(uniqueID)
+	# 	# Checks if the PCR file is paired with a LIS file
+	# 	for uniqueID, pairs in fusion_file_index.items():
+	# 		if (len(pairs) < 2):
+	# 			print("No matching LIS file found for %s" % pairs[0])
+	# 			missing_pcr_files.append(pairs[0])
+	# 			# Remove the unique_id from analysis
+	# 			pcr_keys_to_remove.append(uniqueID)
 
-		for pcr_keys in pcr_keys_to_remove:
-			del fusion_file_index[pcr_keys]
+	# 	for pcr_keys in pcr_keys_to_remove:
+	# 		del fusion_file_index[pcr_keys]
 
-		fusion_file_index['missing_lis'] = missing_lis_files
-		fusion_file_index['missing_pcr'] = missing_pcr_files
+	# 	fusion_file_index['missing_lis'] = missing_lis_files
+	# 	fusion_file_index['missing_pcr'] = missing_pcr_files
 
-		return fusion_file_index
+	# 	return fusion_file_index
 
 
 
