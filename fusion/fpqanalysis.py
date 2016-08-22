@@ -486,19 +486,19 @@ class FusionPQ():
 
             mean_results = {
                 'POS' :{ 
-                    'FAM_MEAN': {"MEAN_RFU":0, "VALID_COUNT":0, "STD":0},
-                    'HEX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD":0},
-                    'ROX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD": 0},
-                    'RED647_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD":0}
+                    'FAM_MEAN': {"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
+                    'HEX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
+                    'ROX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD": 0},
+                    'RED647_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0}
                 },
                 'NEG' :{
-                    'FAM_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD":0},
-                    'HEX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD":0},
-                    'ROX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD":0},
-                    'RED647_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD":0}
+                    'FAM_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
+                    'HEX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
+                    'ROX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
+                    'RED647_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0}
                 },
                 'IC':{
-                    'IC_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "STD":0}
+                    'IC_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0}
                 }
             }
 
@@ -525,7 +525,7 @@ class FusionPQ():
 
 
                     data_row_rfu_range_pos = data_row_gen[columns[1]].astype(float)
-                    data_row_ct_pos = data_row_gen[columns[2]].astype(float)
+                    data_row_ct_pos = data_row_gen[columns[2]].astype(float).replace("nc", np.NaN)
 
                     data_row_pos_rfu_mean = data_row_rfu_range_pos.mean()
                     data_row_pos_rfu_count = data_row_rfu_range_pos.count()
@@ -551,7 +551,7 @@ class FusionPQ():
 
                     mean_results['POS'][channel]['MEAN_RFU'] = data_row_pos_rfu_mean 
                     mean_results['POS'][channel]['VALID_COUNT'] = data_row_pos_rfu_count 
-                    mean_results['POS'][channel]['STD_RFU'] = data_row_pos_rfu_std
+                    mean_results['POS'][channel]['RFU_STD'] = data_row_pos_rfu_std
 
                     mean_results['POS'][channel]['MEAN_CT'] = data_row_pos_ct_mean 
                     mean_results['POS'][channel]['STD_CT'] =  data_row_pos_ct
@@ -559,7 +559,7 @@ class FusionPQ():
 
                     mean_results['NEG'][channel]['MEAN_RFU'] = data_row_neg_mean_rfu
                     mean_results['NEG'][channel]['VALID_COUNT'] =  data_row_neg_count_rfu
-                    mean_results['NEG'][channel]['STD_RFU'] = data_row_neg_std_rfu
+                    mean_results['NEG'][channel]['RFU_STD'] = data_row_neg_std_rfu
 
                     mean_results['NEG'][channel]['MEAN_CT'] = data_row_neg_mean_ct
                     mean_results['NEG'][channel]['STD_CT'] =  data_row_neg_std_ct
