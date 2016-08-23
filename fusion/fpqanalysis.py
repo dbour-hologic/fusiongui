@@ -463,107 +463,112 @@ class FusionPQ():
 
         return all_groups
 
-    def get_stats_of_valids(self,  group_stats_by, pq_dframe):
+    def get_stats_of_valids(self,  group_stats_by, pq_dframe, *args, **kwargs):
 
         """ Get the stats for 
         (1) VALID (doesn't matter PQ)
         (2) TYPE (pos or neg)
 
         * ignores positive/negative controls in calculations
+
+        Args:
+            group_stats_by - the column to group the statistics by
+            pq_dframe - the dataframe that has been pq'd
         """
 
+        # Holds the groups with the statistics. The group by header will be the key
         all_group_stats = {}
 
         categories = {
-            'FAM_MEAN':['Validity for POS/NEG/Invalid for HPIV-1', 'FAM-Unrounded RFU Range', 'FAM-Unrounded Ct'],
-            'HEX_MEAN':['Validity for POS/NEG/Invalid for HPIV-2', 'HEX-Unrounded RFU Range', 'HEX-Unrounded Ct'],
-            'ROX_MEAN':['Validity for POS/NEG/Invalid for HPIV-3', 'ROX-Unrounded RFU Range', 'ROX-Unrounded Ct'],
-            'RED647_MEAN':['Validity for POS/NEG/Invalid for HPIV-4', 'RED647-Unrounded RFU Range', 'RED647-Unrounded Ct'],
-            'IC_MEAN':['Valid/Invalid for IC', 'IC-Unrounded RFU Range', 'IC-Unrounded Ct']
+            'FAM':['Validity for POS/NEG/Invalid for HPIV-1', 
+                         'FAM-Unrounded RFU Range', 
+                         'FAM-Unrounded Ct',
+                         'FAM-EstimatedBaseline',
+                         'FAM-LR_TSlope_NonNormalized'],
+            'HEX':['Validity for POS/NEG/Invalid for HPIV-2', 
+                         'HEX-Unrounded RFU Range', 
+                         'HEX-Unrounded Ct',
+                         'HEX-EstimatedBaseline',
+                         'HEX-LR_TSlope_NonNormalized'],
+            'ROX':['Validity for POS/NEG/Invalid for HPIV-3', 
+                         'ROX-Unrounded RFU Range', 
+                         'ROX-Unrounded Ct',
+                         'ROX-EstimatedBaseline',
+                         'ROX-LR_TSlope_NonNormalized'],
+            'RED647':['Validity for POS/NEG/Invalid for HPIV-4', 
+                                 'RED647-Unrounded RFU Range', 
+                                 'RED647-Unrounded Ct',
+                                 'RED647-EstimatedBaseline',
+                                 'RED647-LR_TSlope_NonNormalized'],
+            'IC':['Valid/Invalid for IC', 
+                    'IC-Unrounded RFU Range', 
+                    'IC-Unrounded Ct',
+                    'IC-EstimatedBaseline',
+                    'IC-LR_TSlope_NonNormalized']
         }
+
 
         for group_cat, series in pq_dframe.groupby([group_stats_by]):
 
-            mean_results = {
+            # Default values
+            stats_results = {
                 'POS' :{ 
-                    'FAM_MEAN': {"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
-                    'HEX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
-                    'ROX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD": 0},
-                    'RED647_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0}
+                    'FAM': {},
+                    'HEX':{},
+                    'ROX':{},
+                    'RED647':{}
                 },
                 'NEG' :{
-                    'FAM_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
-                    'HEX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
-                    'ROX_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0},
-                    'RED647_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0}
+                    'FAM':{},
+                    'HEX':{},
+                    'ROX':{},
+                    'RED647':{}
                 },
                 'IC':{
-                    'IC_MEAN':{"MEAN_RFU":0, "VALID_COUNT":0, "RFU_STD":0}
+                    'IC':{}
                 }
             }
 
-            for channel, columns in categories.items():
 
-                if channel == 'IC_MEAN':
+            for channel, columns_list in categories.items():
 
-                    data_row_ic = series[series[columns[0]].str.contains(r'\bVALID\b', case=False)][columns[1]]
+                print(channel, columns_list)
 
-                    ic_mean = data_row_ic.mean() 
-                    ic_std =data_row_ic.std() 
-                    ic_count = data_row_ic.count()
+                if channel == "IC":
 
-                    mean_results['IC'][channel]['MEAN_RFU'] = ic_mean
-                    mean_results['IC'][channel]['STD_RFU'] = ic_std
-                    mean_results['IC'][channel]['VALID_COUNT'] = ic_count
+                    for number, col in enumerate(columns_list):
+
+                        if number == 0:
+                            continue 
+
+                        data_row_generator_ic = series[series[columns_list[0]].str.contains(r"\bVALID\b", case=False)][col]
+
+                        stats_results['IC'][channel]["MEAN."+col] = data_row_generator_ic.astype(float).replace("nc", np.NaN).mean()
+                        stats_results['IC'][channel]["STD."+col] = data_row_generator_ic.astype(float).replace("nc", np.NaN).std()
 
                 else:
 
+                    for number, col in enumerate(columns_list):
 
-                    data_row_gen = series[series[columns[0]].str.contains(r'\bVALID\b', case=False) & \
-                                                                  series['SAMPLE Category'].str.contains('POS', case=False) & \
-                                                                  series['Sample Type'].str.contains('Specimen', case=False)]
-
-
-                    data_row_rfu_range_pos = data_row_gen[columns[1]].astype(float)
-                    data_row_ct_pos = data_row_gen[columns[2]].astype(float).replace("nc", np.NaN)
-
-                    data_row_pos_rfu_mean = data_row_rfu_range_pos.mean()
-                    data_row_pos_rfu_count = data_row_rfu_range_pos.count()
-                    data_row_pos_rfu_std = data_row_rfu_range_pos.std()
-
-                    data_row_pos_ct_mean = data_row_ct_pos.mean()
-                    data_row_pos_ct_count = data_row_ct_pos.count()
-                    data_row_pos_ct = data_row_ct_pos.std()
-
-                    data_row_neg_gen = series[series[columns[0]].str.contains(r'\bVALID\b', case=False) &\
-                                                                                          series['SAMPLE Category'].str.contains('NEG', case=False) &\
-                                                                                          series['Sample Type'].str.contains('Specimen', case=False)]
-
-                    data_row_neg_rfu_range = data_row_neg_gen[[columns[1]]]
-                    data_row_neg_ct = data_row_neg_gen[[columns[2]]].replace("nc", np.NaN)
-
-                    data_row_neg_mean_rfu = data_row_neg_rfu_range.mean()
-                    data_row_neg_count_rfu = data_row_neg_rfu_range.count()
-                    data_row_neg_std_rfu = data_row_neg_rfu_range.std()
-
-                    data_row_neg_mean_ct =  data_row_neg_ct .mean()
-                    data_row_neg_std_ct =  data_row_neg_ct .std()
-
-                    mean_results['POS'][channel]['MEAN_RFU'] = data_row_pos_rfu_mean 
-                    mean_results['POS'][channel]['VALID_COUNT'] = data_row_pos_rfu_count 
-                    mean_results['POS'][channel]['RFU_STD'] = data_row_pos_rfu_std
-
-                    mean_results['POS'][channel]['MEAN_CT'] = data_row_pos_ct_mean 
-                    mean_results['POS'][channel]['STD_CT'] =  data_row_pos_ct
+                        if number == 0:
+                            continue
 
 
-                    mean_results['NEG'][channel]['MEAN_RFU'] = data_row_neg_mean_rfu
-                    mean_results['NEG'][channel]['VALID_COUNT'] =  data_row_neg_count_rfu
-                    mean_results['NEG'][channel]['RFU_STD'] = data_row_neg_std_rfu
+                        data_row_gen_pos = series[series[columns_list[0]].str.contains(r'\bVALID\b', case=False) & \
+                                                                                series['SAMPLE Category'].str.contains('POS', case=False) & \
+                                                                                series['Sample Type'].str.contains('Specimen', case=False)][col]
 
-                    mean_results['NEG'][channel]['MEAN_CT'] = data_row_neg_mean_ct
-                    mean_results['NEG'][channel]['STD_CT'] =  data_row_neg_std_ct
+                        stats_results['POS'][channel]["MEAN."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).mean()
+                        stats_results['POS'][channel]["STD."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).std()
 
-            all_group_stats[group_cat] = mean_results
+                        data_row_neg_gen = series[series[columns_list[0]].str.contains(r'\bVALID\b', case=False) &\
+                                                                                series['SAMPLE Category'].str.contains('NEG', case=False) &\
+                                                                                series['Sample Type'].str.contains('Specimen', case=False)][col]
+
+                        stats_results['NEG'][channel]["MEAN."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).mean()
+                        stats_results['NEG'][channel]["STD."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).std()
+
+
+            all_group_stats[group_cat] = stats_results
 
         return all_group_stats
