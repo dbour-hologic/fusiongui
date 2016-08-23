@@ -55,6 +55,11 @@ class FusionPQ():
 
 
     def fix_empty(self):
+         self.dframe['FAM Rounded Ct'] = self.dframe['FAM Rounded Ct'].fillna("Invalid")
+         self.dframe['HEX Rounded Ct'] = self.dframe['HEX Rounded Ct'].fillna("Invalid")
+         self.dframe['ROX Rounded Ct'] = self.dframe['ROX Rounded Ct'].fillna("Invalid")
+         self.dframe['RED647 Rounded Ct'] = self.dframe['RED647 Rounded Ct'].fillna("Invalid")
+         self.dframe['IC Rounded Ct'] = self.dframe['IC Rounded Ct'].fillna("Invalid")
          self.dframe['Valid/Invalid for IC'] = self.dframe['Valid/Invalid for IC'].fillna("Invalid")
 
     def run_pq(self):
@@ -369,11 +374,11 @@ class FusionPQ():
 
     def stats(self, groupby_settings='Run ID', *args, **kwargs):
 
-        pq_dframe = self.run_pq
+        pq_dframe = self.run_pq()
 
         get_stats = {
             "PQ_RESULTS":self.get_pq_results(groupby_settings, pq_dframe),
-            "STATS":self.get_pq_results(groupby_settings, pq_dframe)
+            "STATS":self.get_stats_of_valids(groupby_settings, pq_dframe)
         }
 
         return get_stats
@@ -394,16 +399,16 @@ class FusionPQ():
 
             pq_stats = {
                 'POS': {
-                    'FAM': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_NEG': 0},
-                    'HEX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_NEG': 0},
-                    'ROX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0,'FALSE_NEG': 0},
-                    'RED647': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0,'FALSE_NEG': 0},
+                    'FAM': {},
+                    'HEX': {},
+                    'ROX': {},
+                    'RED647': {},
                 },
                 'NEG':{
-                    'FAM': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
-                    'HEX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
-                    'ROX': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
-                    'RED647': {'COUNT': 0, 'PASS': 0,'FAIL': 0, 'INVALIDS':0, 'FALSE_POS': 0},
+                    'FAM': {},
+                    'HEX': {},
+                    'ROX': {},
+                    'RED647': {},
                 }
             }
 
@@ -447,21 +452,121 @@ class FusionPQ():
                                                                              series['Sample Type'].str.contains('Specimen', case=False) & \
                                                                              series[columns[2]].str.contains(r"\bINVALID\b")][columns[0]].count()
 
-                pq_stats['POS'][channel]['COUNT'] = data_row_pos + data_row_invalid_pos + data_row_pos_fail
-                pq_stats['POS'][channel]['PASS'] = data_row_pos
-                pq_stats['POS'][channel]['FAIL'] = data_row_pos_fail
-                pq_stats['POS'][channel]['INVALIDS'] = data_row_invalid_pos
-                pq_stats['POS'][channel]['FALSE_NEG'] = data_row_pos_false
+                pq_stats['POS'][channel][channel+'.COUNT'] = data_row_pos + data_row_invalid_pos + data_row_pos_fail
+                pq_stats['POS'][channel][channel+'.PASS'] = data_row_pos
+                pq_stats['POS'][channel][channel+'.FAIL'] = data_row_pos_fail
+                pq_stats['POS'][channel][channel+'.INVALIDS'] = data_row_invalid_pos
+                pq_stats['POS'][channel][channel+'.FALSE_NEG'] = data_row_pos_false
 
-                pq_stats['NEG'][channel]['COUNT'] = data_row_neg + data_row_invalid_neg + data_row_neg_fail
-                pq_stats['NEG'][channel]['PASS'] = data_row_neg
-                pq_stats['NEG'][channel]['FAIL'] = data_row_neg_fail
-                pq_stats['NEG'][channel]['INVALIDS'] = data_row_invalid_neg
-                pq_stats['NEG'][channel]['FALSE_POS'] = data_row_neg_false
+                pq_stats['NEG'][channel][channel+'.COUNT'] = data_row_neg + data_row_invalid_neg + data_row_neg_fail
+                pq_stats['NEG'][channel][channel+'.PASS'] = data_row_neg
+                pq_stats['NEG'][channel][channel+'.FAIL'] = data_row_neg_fail
+                pq_stats['NEG'][channel][channel+'.INVALIDS'] = data_row_invalid_neg
+                pq_stats['NEG'][channel][channel+'.FALSE_POS'] = data_row_neg_false
 
             all_groups[group_cat] = pq_stats
 
         return all_groups
+
+    def write_stats(self, save_to):
+        data_results = self.stats()
+
+        add_df = []
+
+        # for instrument_name, channel_data  in data_results['STATS'].items():
+        #     add_df = self.create_df_list(instrument_name, channel_data)
+
+        add_df = self.create_df_list(data_results)
+
+
+
+        combine_1 = pd.concat(add_df[0])
+        combine_2 = pd.concat(add_df[1])
+  
+        # print(combine_2)
+        # combine_it = [combine_1, combine_2]
+        # # print(combine_1.reset_index())
+        # # print(combine_2.reset_index())
+        c = combine_1.reset_index().merge(combine_2.reset_index(), left_on=['GroupBy', 'TYPE'], right_on=['GroupBy', 'TYPE'], how='outer')
+        # p = combine_1.reset_index().merge(combine_2.reset_index())
+
+
+        big_list_of_columns = ['GroupBy', 'TYPE']
+        channels = ["FAM","HEX","ROX","RED647","IC"]
+
+        for chan_type in channels:
+
+            column_template = "chan.PASS,chan.COUNT, chan.FAIL, chan.FALSE_NEG, chan.FALSE_POS,chan.INVALIDS,\
+                                                    MEAN.chan-Unrounded RFU Range, STD.chan-Unrounded RFU Range,\
+                                                    MEAN.chan-Unrounded Ct, STD.chan-Unrounded Ct, \
+                                                    MEAN.chan-EstimatedBaseline,STD.chan-EstimatedBaseline,\
+                                                    MEAN.chan-LR_TSlope_NonNormalized, STD.chan-LR_TSlope_NonNormalized, \
+                                                    MEAN.chan-Unrounded RFU Range, STD.chan-Unrounded RFU Range".replace("chan",chan_type)
+
+            modify_template = "".join(column_template.split())
+
+      
+
+            column_template_list = column_template.split(',')
+            column_template_list = map(lambda x: "".join(x.split()), column_template_list)
+            final_list = list(column_template_list)
+            big_list_of_columns += final_list
+
+        c = c[big_list_of_columns]
+        c = c.set_index(['GroupBy', 'TYPE'])
+        c.to_excel(os.path.join(os.getcwd(), 'faketestfile.xlsx'))
+
+    def create_df_list(self, data_results):
+
+        df_frame_list_stats = []
+        df_frame_list_pq = []
+    
+        for stats_groupby, channel_data in data_results['STATS'].items():
+
+            data_add_to_df = {
+                'GroupBy':[stats_groupby,stats_groupby],
+                'TYPE':['Positive','Negative']
+            }
+            for chan, data_types in channel_data['POS'].items():
+                for data_header, data_value in data_types.items():
+                    data_add_to_df[data_header] = [data_value]
+            for neg_chan, neg_data_types in channel_data['NEG'].items():
+                for neg_data_header, neg_data_value in neg_data_types.items():
+                    data_add_to_df[neg_data_header].append(neg_data_value)
+
+
+
+            df = pd.DataFrame(data_add_to_df)
+            df_headers = [headers for headers, values in data_add_to_df.items()]
+            df_frame_list_stats.append(df.set_index(['GroupBy', 'TYPE']).squeeze())
+
+
+        for pq_groupby, pq_channel_data in data_results['PQ_RESULTS'].items():
+
+            pq_data_add_to_df = {
+                'GroupBy':[pq_groupby,pq_groupby],
+                'TYPE':['Positive','Negative']
+            }
+
+            for pq_chan, pq_data_types in pq_channel_data['POS'].items():
+                for pq_data_header, pq_values in pq_data_types.items():
+                    if pq_data_header.find("FALSE_NEG") > -1:
+                        pq_data_add_to_df[pq_data_header] = [pq_values,"N/A"]
+                    else:
+                        pq_data_add_to_df[pq_data_header] = [pq_values]
+            for neg_pq_chan, neg_pq_data in pq_channel_data['NEG'].items():
+                for neg_pq_data_header, neg_pq_values in neg_pq_data.items():
+                    if neg_pq_data_header.find("FALSE_POS") > -1:
+                        pq_data_add_to_df[neg_pq_data_header] = ["N/A",neg_pq_values]
+                    else:
+                        pq_data_add_to_df[neg_pq_data_header].append(neg_pq_values)
+
+            df = pd.DataFrame(pq_data_add_to_df)
+            df_headers = [headers for headers, values in pq_data_add_to_df.items()]
+            df_frame_list_pq.append(df.set_index(['GroupBy', 'TYPE']).squeeze())
+
+        return([df_frame_list_stats,df_frame_list_pq])
+
 
     def get_stats_of_valids(self,  group_stats_by, pq_dframe, *args, **kwargs):
 
@@ -516,15 +621,14 @@ class FusionPQ():
                     'FAM': {},
                     'HEX':{},
                     'ROX':{},
-                    'RED647':{}
+                    'RED647':{},
+                    'IC':{}
                 },
                 'NEG' :{
                     'FAM':{},
                     'HEX':{},
                     'ROX':{},
-                    'RED647':{}
-                },
-                'IC':{
+                    'RED647':{},
                     'IC':{}
                 }
             }
@@ -532,41 +636,24 @@ class FusionPQ():
 
             for channel, columns_list in categories.items():
 
-                print(channel, columns_list)
+                for number, col in enumerate(columns_list):
 
-                if channel == "IC":
+                    if number == 0:
+                        continue
 
-                    for number, col in enumerate(columns_list):
+                    data_row_gen_pos = series[series[columns_list[0]].str.contains(r'\bVALID\b', case=False) & \
+                                                                            series['SAMPLE Category'].str.contains('POS', case=False) & \
+                                                                            series['Sample Type'].str.contains('Specimen', case=False)][col]
 
-                        if number == 0:
-                            continue 
+                    stats_results['POS'][channel]["MEAN."+col] = data_row_gen_pos.replace("nc", np.NaN).astype(float).mean()
+                    stats_results['POS'][channel]["STD."+col] = data_row_gen_pos.replace("nc", np.NaN).astype(float).std()
 
-                        data_row_generator_ic = series[series[columns_list[0]].str.contains(r"\bVALID\b", case=False)][col]
+                    data_row_neg_gen = series[series[columns_list[0]].str.contains(r'\bVALID\b', case=False) &\
+                                                                            series['SAMPLE Category'].str.contains('NEG', case=False) &\
+                                                                            series['Sample Type'].str.contains('Specimen', case=False)][col]
 
-                        stats_results['IC'][channel]["MEAN."+col] = data_row_generator_ic.astype(float).replace("nc", np.NaN).mean()
-                        stats_results['IC'][channel]["STD."+col] = data_row_generator_ic.astype(float).replace("nc", np.NaN).std()
-
-                else:
-
-                    for number, col in enumerate(columns_list):
-
-                        if number == 0:
-                            continue
-
-
-                        data_row_gen_pos = series[series[columns_list[0]].str.contains(r'\bVALID\b', case=False) & \
-                                                                                series['SAMPLE Category'].str.contains('POS', case=False) & \
-                                                                                series['Sample Type'].str.contains('Specimen', case=False)][col]
-
-                        stats_results['POS'][channel]["MEAN."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).mean()
-                        stats_results['POS'][channel]["STD."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).std()
-
-                        data_row_neg_gen = series[series[columns_list[0]].str.contains(r'\bVALID\b', case=False) &\
-                                                                                series['SAMPLE Category'].str.contains('NEG', case=False) &\
-                                                                                series['Sample Type'].str.contains('Specimen', case=False)][col]
-
-                        stats_results['NEG'][channel]["MEAN."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).mean()
-                        stats_results['NEG'][channel]["STD."+col] = data_row_gen_pos.astype(float).replace("nc", np.NaN).std()
+                    stats_results['NEG'][channel]["MEAN."+col] = data_row_neg_gen.replace("nc", np.NaN).astype(float).mean()
+                    stats_results['NEG'][channel]["STD."+col] = data_row_neg_gen.replace("nc", np.NaN).astype(float).std()
 
 
             all_group_stats[group_cat] = stats_results
